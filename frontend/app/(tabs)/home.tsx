@@ -23,6 +23,7 @@ import { useAuthStore } from '../../src/state/auth'
 import type { Item } from '../../src/data/items'
 import { ITEMS } from '../../src/data/items'
 import { getInitialItems, initRecommender, onItemViewed, rankItems, updateModel } from '../../src/lib/recommender'
+import { sendInteraction, checkBackendHealth } from '../../src/lib/api'
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
 
@@ -81,6 +82,14 @@ export default function HomeScreen() {
     loadUser()
     initRecommender()
     loadRecommendations()
+    // Test backend connection
+    checkBackendHealth().then(result => {
+      if (result) {
+        console.log('✅ Backend connected successfully')
+      } else {
+        console.warn('⚠️ Backend connection failed - app will work offline')
+      }
+    })
 
     loadingTimeoutRef.current = setTimeout(() => {
       if (loadingRef.current && (itemsRef.current?.length || 0) === 0) {
@@ -224,6 +233,8 @@ export default function HomeScreen() {
         else if (decision === 'cart')
           addToCart({ id: currentItem.id, title: currentItem.title, price: currentItem.price, image: currentItem.image, brand: currentItem.brand, quantity: 1 })
       } catch {}
+      // Send interaction to backend API
+      try { sendInteraction(decision, currentItem.id) } catch {}
       try {
         updateModel(decision, currentItem)
         const rest = items.slice(currentIndex + 1)

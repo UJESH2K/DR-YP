@@ -20,6 +20,16 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+// Custom logging middleware to track API calls
+app.use((req, res, next) => {
+  console.log(`\n🔥 API CALL: ${req.method} ${req.path}`);
+  console.log(`📱 From: ${req.get('origin') || 'localhost'}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -40,11 +50,15 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ message: err.message || 'Server error' });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5001; // Changed to 5001 to avoid conflicts
 
 // Start server
 (async () => {
-  await connectDatabase(process.env.MONGO_URI);
+  try {
+    await connectDatabase(process.env.MONGO_URI);
+  } catch (error) {
+    console.warn('Starting server without database connection:', error.message);
+  }
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 })();
 

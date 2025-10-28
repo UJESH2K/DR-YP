@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sendAuth } from '../lib/api';
 
 export interface User {
   id: string;
@@ -68,6 +69,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         
         await AsyncStorage.setItem('user', JSON.stringify(user));
         set({ user, isAuthenticated: true });
+        // Send user data to backend API
+        try { sendAuth(email, user.name || email.split('@')[0]) } catch {}
         return true;
       }
       
@@ -101,6 +104,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         
         await AsyncStorage.setItem('user', JSON.stringify(user));
         set({ user, isAuthenticated: true });
+        // Send user data to backend API
+        try { sendAuth(phone, user.name || `User ${phone.slice(-4)}`) } catch {}
         return true;
       }
       
