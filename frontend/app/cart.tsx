@@ -8,7 +8,7 @@ import {
   StyleSheet, 
   StatusBar,
   Dimensions,
-  Alert
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCartStore, CartItem } from '../src/state/cart';
@@ -65,7 +65,7 @@ export default function CartScreen() {
             style={[styles.quantityButton, styles.increaseButton]} 
             onPress={() => handleQuantityChange(item, 1)}
           >
-            <Text style={styles.quantityButtonText}>+</Text>
+            <Text style={[styles.quantityButtonText, { color: '#fff' }]}>+</Text>
           </Pressable>
         </View>
       </View>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   placeholder: {
-    width: 50, // Balance the header layout
+    width: 50,
   },
   itemsHeader: {
     paddingHorizontal: 20,
@@ -188,11 +188,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     marginBottom: 15,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+      },
+    }),
     overflow: 'hidden',
   },
   itemImage: {

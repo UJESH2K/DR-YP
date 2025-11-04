@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "scheme": "casa",
+    "scheme": "dryp",
     "updates": {
       "fallbackToCacheTimeout": 0
     },
@@ -17,12 +17,15 @@
     },
     "android": {
       "backgroundColor": "#000000",
-      "package": "com.casa.app"
+      "package": "com.dryp.app"
     },
     "extra": {
       "eas": {
         "projectId": "6e689fa4-06f0-45d8-87e3-49563c8716ef"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

@@ -1,15 +1,19 @@
 // Simple API service to send data to backend without changing frontend structure
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
+
+// Log the API URL being used for debugging
+console.log('🌐 API Base URL:', API_BASE_URL);
 
 // Simple fetch wrapper with error handling
 async function apiCall(endpoint: string, options: RequestInit = {}) {
   try {
-    console.log(`🚀 FRONTEND API CALL: ${options.method || 'GET'} ${endpoint}`);
+    const fullUrl = `${API_BASE_URL}${endpoint}`;
+    console.log(`🚀 FRONTEND API CALL: ${options.method || 'GET'} ${fullUrl}`);
     if (options.body) {
       console.log(`📤 Sending data:`, JSON.parse(options.body as string));
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -27,7 +31,9 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
     console.log(`✅ API success: ${endpoint}`, data);
     return data;
   } catch (error) {
-    console.warn(`❌ API error: ${endpoint}`, error);
+    console.error(`❌ API error: ${endpoint}`, error);
+    console.error(`❌ Full URL was: ${API_BASE_URL}${endpoint}`);
+    console.error(`❌ Error details:`, error.message, error.code);
     return null;
   }
 }

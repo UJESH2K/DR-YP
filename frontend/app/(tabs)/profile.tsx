@@ -9,27 +9,66 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 
 export default function ProfileScreen() {
   const router = useRouter()
 
-  const menuItems = [
-    { id: 'orders', title: 'My Orders', icon: '📦', onPress: () => {} },
-    { id: 'addresses', title: 'Addresses', icon: '📍', onPress: () => {} },
-    { id: 'payment', title: 'Payment Methods', icon: '💳', onPress: () => {} },
-    { id: 'preferences', title: 'Style Preferences', icon: '⚙️', onPress: () => router.push('/onboarding') },
-    { id: 'notifications', title: 'Notifications', icon: '🔔', onPress: () => {} },
-    { id: 'help', title: 'Help & Support', icon: '❓', onPress: () => {} },
-    { id: 'about', title: 'About DRYP', icon: 'ℹ️', onPress: () => {} },
-  ]
+const menuItems = [
+  { id: 'orders', title: 'My Orders', icon: <MaterialIcons name="local-shipping" size={22} color="#000" />, onPress: () => router.push('/account/orders') },
+  { id: 'addresses', title: 'Addresses', icon: <Ionicons name="location-outline" size={22} color="#000" />, onPress: () => router.push('/account/addresses') },
+  { id: 'payment', title: 'Payment Methods', icon: <Ionicons name="card-outline" size={22} color="#000" />, onPress: () => router.push('/account/payment') },
+  { id: 'style', title: 'Style Preference', icon: <Ionicons name="shirt-outline" size={22} color="#000" />, onPress: () => router.push('/account/style') },
+  { id: 'notifications', title: 'Notifications', icon: <Ionicons name="notifications-outline" size={22} color="#000" />, onPress: () => router.push('/account/notifications') },
+  { id: 'help', title: 'Help & Support', icon: <Feather name="help-circle" size={22} color="#000" />, onPress: () => router.push('/account/help') },
+  { id: 'about', title: 'About', icon: <Ionicons name="information-circle-outline" size={22} color="#000" />, onPress: () => router.push('/account/about') },
+];
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>CASA</Text>
-        <Text style={styles.headerSubtitle}>Account</Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 10,
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#eaeaea',
+        }}
+      >
+        {/* Logo */}
+        <Text
+          style={{
+            fontSize: 33,
+            fontWeight: '00',
+            color: '#000',
+            letterSpacing: 1.5,
+          }}
+        >
+          DRYP
+        </Text>
+
+        {/* Account Text */}
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#000',
+            letterSpacing: 0.5,
+          }}
+        >
+          Account
+        </Text>
+
+        {/* Cart Icon */}
+        <Pressable>
+          <Text style={{ fontSize: 31, color: '#000' }}>🛒</Text>
+        </Pressable>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -38,7 +77,7 @@ export default function ProfileScreen() {
           <View style={styles.profileAvatar}>
             <Text style={styles.profileAvatarText}>👤</Text>
           </View>
-          <Text style={styles.profileName}>Welcome to CASA</Text>
+          <Text style={styles.profileName}>Welcome to DRYP</Text>
           <Text style={styles.profileEmail}>Discover your style</Text>
         </View>
 
@@ -83,10 +122,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '300',
+    fontSize: 32,
+    fontWeight: '900',
     color: '#000000',
-    letterSpacing: 1,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   headerSubtitle: {
     fontSize: 16,

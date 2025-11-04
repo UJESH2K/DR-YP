@@ -1,31 +1,34 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet } from 'react-native'
+import Ionicons from 'react-native-vector-icons/Ionicons'
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
   const getIcon = () => {
     switch (name) {
       case 'home':
-        return '🏠'
+        return focused ? 'home' : 'home-outline'
       case 'search':
-        return '🔍'
-      case 'wishlist':
-        return '🛒'
+        return focused ? 'search' : 'search-outline'
+      case 'wishlist': // this is your cart 🛒
+        return focused ? 'cart' : 'cart-outline'
       case 'profile':
-        return focused ? '❤️' : '🤍'
+        return focused ? 'heart' : 'heart-outline'
       default:
-        return '•'
+        return 'ellipse'
     }
   }
 
   return (
-    <View style={styles.tabIcon}>
-      <Text style={[styles.iconText, { color: focused ? '#000000' : '#666666' }]}>
-        {getIcon()}
-      </Text>
-    </View>
+    <Ionicons
+      name={getIcon()}
+      size={26}
+      color={focused ? '#000' : '#888'}
+      style={{ marginBottom: -3 }}
+    />
   )
 }
+
 
 export default function TabLayout() {
   return (

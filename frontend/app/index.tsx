@@ -46,7 +46,7 @@ export default function Index() {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#000000" />
-        <Text style={styles.loadingText}>Loading Casa...</Text>
+        <Text style={styles.loadingText}>Loading DRYP...</Text>
         {Platform.OS === 'android' && (
           <Text style={styles.platformText}>Initializing Android app</Text>
         )}

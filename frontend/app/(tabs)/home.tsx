@@ -16,7 +16,9 @@ import {
   ScrollView, // <-- ADDED
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { router } from 'expo-router'
 import { useCartStore } from '../../src/state/cart'
+import { useThemeStore } from '../../src/state/theme'
 import { useWishlistStore } from '../../src/state/wishlist'
 import { useInteractionStore } from '../../src/state/interactions'
 import { useAuthStore } from '../../src/state/auth'
@@ -24,6 +26,7 @@ import type { Item } from '../../src/data/items'
 import { ITEMS } from '../../src/data/items'
 import { getInitialItems, initRecommender, onItemViewed, rankItems, updateModel } from '../../src/lib/recommender'
 import { sendInteraction, checkBackendHealth } from '../../src/lib/api'
+import { Ionicons } from '@expo/vector-icons'
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
 
@@ -34,6 +37,7 @@ export default function HomeScreen() {
   const addToWishlist = useWishlistStore((s) => s.addToWishlist)
   const pushInteraction = useInteractionStore((s) => s.pushInteraction)
   const { loadUser } = useAuthStore()
+  const { theme, toggleTheme } = useThemeStore()
 
   const [items, setItems] = useState<Item[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -301,28 +305,153 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+  <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>DRYP</Text>
+  <View
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 10,
+      backgroundColor: '#fff',
+      borderBottomWidth: 1,
+      borderBottomColor: '#eaeaea',
+    }}
+  >
+    {/* Logo */}
+    <Text
+      style={{
+        fontSize: 33,
+        fontWeight: '00',
+        color: '#000',
+        letterSpacing: 1.5,
+      }}
+    >
+      DRYP
+    </Text>
 
-        {/* Improved search: limited width and tappable */}
-        <Pressable style={styles.searchContainer} onPress={() => Alert.alert('Search', 'Open search UI here')}> 
-          <Text style={styles.searchIcon}>🔍</Text>
-          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.searchPlaceholder}>Search</Text>
-        </Pressable>
+    {/* Search */}
+    <Pressable
+      onPress={() => router.push('/(tabs)/search')}
+      style={{
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#000',        // ✅ solid black border
+    borderWidth: 2,             // ✅ make it bold/visible
+    borderRadius: 25,           // ✅ rounded corners
+    paddingHorizontal: 18,
+    paddingVertical: 2,
+    flex: 1,
+    marginHorizontal: 19,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3, 
+      }}
+    >
+      <Text style={{ fontSize: 16, color: '#333', marginRight: 6 }}>🔍</Text>
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: '100',
+          color: '#111',
+          letterSpacing: 0.2,
+        }}
+      >
+        Search...
+      </Text>
+    </Pressable>
 
-        <Pressable style={styles.notificationButton} onPress={() => Alert.alert('Notifications') }>
-          <Text style={styles.notificationIcon}>🔔</Text>
-        </Pressable>
-      </View>
+    {/* Theme toggle */}
+<Pressable onPress={() => router.push('/cart')}>
+  <Ionicons name="cart-outline" size={31} color="#000" />
+</Pressable>
 
-      <View style={styles.filtersContainer}>
-        <Pressable style={styles.filterButton}><Text style={styles.filterIcon}>☰</Text></Pressable>
-        <Pressable style={styles.categoryButton}><Text style={styles.categoryText}>Brand</Text><Text style={styles.categoryArrow}>▼</Text></Pressable>
-        <Pressable style={styles.categoryButton}><Text style={styles.categoryText}>Product</Text><Text style={styles.categoryArrow}>▼</Text></Pressable>
-        <Pressable style={styles.categoryButton}><Text style={styles.categoryText}>Col</Text><Text style={styles.categoryArrow}>▼</Text></Pressable>
-      </View>
+  </View>
+
+
+<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginVertical: 10 }}>
+  <Pressable
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#fff',
+      borderColor: '#ffffffff',
+      borderWidth: 2,
+      borderRadius: 25,
+      paddingHorizontal: 16,
+      paddingVertical: 5,
+      // elevation: 3,
+    }}
+    onPress={() => Alert.alert('Filters', 'Filter menu coming soon!')}
+  >
+    <Text style={{ fontSize: 19, color: '#000', fontWeight: '900' }}>☰</Text>
+  </Pressable>
+
+
+  <Pressable
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#fff',
+      borderColor: '#000',
+      borderWidth: 2,
+      borderRadius: 25,
+      paddingHorizontal: 16,
+      paddingVertical: 2,
+      elevation: 3,
+    }}
+    onPress={() => Alert.alert('Brands', 'Nike, Adidas, Zara, H&M, Uniqlo, Puma')}
+  >
+    <Text style={{ fontSize: 14, color: '#000', marginRight: 4 }}>Brand</Text>
+    <Text style={{ fontSize: 12, color: '#000' }}>▼</Text>
+  </Pressable>
+
+  <Pressable
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#fff',
+      borderColor: '#000',
+      borderWidth: 2,
+      borderRadius: 25,
+      paddingHorizontal: 16,
+      paddingVertical: 2,
+      elevation: 3,
+    }}
+    onPress={() => Alert.alert('Products', 'Shirts, Pants, Shoes, Jackets, Accessories')}
+  >
+    <Text style={{ fontSize: 14, color: '#000', marginRight: 4 }}>Product</Text>
+    <Text style={{ fontSize: 12, color: '#000' }}>▼</Text>
+  </Pressable>
+
+  <Pressable
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#fff',
+      borderColor: '#000',
+      borderWidth: 2,
+      borderRadius: 25,
+      paddingHorizontal: 16,
+      paddingVertical: 2,
+      elevation: 3,
+    }}
+    onPress={() => Alert.alert('Colors', 'Black, White, Blue, Red, Green, Gray')}
+  >
+    <Text style={{ fontSize: 14, color: '#000', marginRight: 4 }}>Col</Text>
+    <Text style={{ fontSize: 12, color: '#000' }}>▼</Text>
+  </Pressable>
+</View>
+
 
       <View style={styles.cardStack}>
         {nextItem && (
@@ -438,15 +567,25 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ffffff', justifyContent: 'space-between' },
-  headerTitle: { fontSize: 26, fontWeight: '700', color: '#000000', letterSpacing: 0.5 },
+  headerTitle: { 
+    fontSize: 32, 
+    fontWeight: '900', 
+    color: '#000000', 
+    letterSpacing: -1,
+    fontFamily: Platform.OS === 'ios' ? 'Helvetica-Bold' : 'sans-serif',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+    transform: [{ scaleY: 1.1 }],
+  },
 
   // Search: limited width so it doesn't expand too much
   searchContainer: { flex: 0.5, minWidth: 100, maxWidth: 160, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f7f7f7', borderRadius: 18, paddingHorizontal: 10, paddingVertical: 8, marginHorizontal: 10, borderWidth: 1, borderColor: '#e9e9e9' },
   searchIcon: { fontSize: 14, marginRight: 6 },
   searchPlaceholder: { fontSize: 14, color: '#9a9a9a', flexShrink: 1 },
 
-  notificationButton: { padding: 6 },
-  notificationIcon: { fontSize: 18 },
+  themeButton: { padding: 8, backgroundColor: '#f0f0f0', borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0' },
+  themeIcon: { fontSize: 18 },
 
   filtersContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#ffffff', gap: 10 },
   filterButton: { backgroundColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 18, borderWidth: 1, borderColor: '#e0e0e0' },
@@ -455,18 +594,93 @@ const styles = StyleSheet.create({
   categoryText: { fontSize: 13, fontWeight: '500', color: '#333333' },
   categoryArrow: { fontSize: 10, color: '#666666' },
 
-  cardStack: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  cardContainer: { width: SCREEN_WIDTH - 40, height: SCREEN_HEIGHT * 0.65, position: 'absolute', zIndex: 2, elevation: 5 },
-  card: { width: SCREEN_WIDTH - 40, height: SCREEN_HEIGHT * 0.65, backgroundColor: '#ffffff', borderRadius: 20, position: 'absolute', shadowColor: '#000000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
+ cardStack: {
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingHorizontal: 20,
+  paddingVertical: 20,
+},
+cardContainer: {
+  width: SCREEN_WIDTH - 40,
+  height: SCREEN_HEIGHT * 0.66, // balanced inside visible frame
+  position: 'absolute',
+  zIndex: 2,
+  elevation: 5,
+  marginTop: 10, // adds breathing room below header
+},
+
+card: {
+  width: SCREEN_WIDTH - 40,
+  height: SCREEN_HEIGHT * 0.65,
+  backgroundColor: '#000',
+  borderRadius: 25,
+  overflow: 'hidden',
+  position: 'absolute',
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.15,
+  shadowRadius: 20,
+  elevation: 8,
+
+  // This visually enlarges card without crossing header
+  transform: [{ scaleY: 1.05 }],
+},
   nextCard: { opacity: 0.8, zIndex: 1, transform: [{ scale: 0.95 }] },
   currentCard: { zIndex: 2, elevation: 5 },
-  cardImage: { width: '100%', height: '70%', borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: '#f5f5f5' },
-  cardOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderBottomLeftRadius: 20, borderBottomRightRadius: 20, padding: 20, justifyContent: 'center' },
-  cardInfo: { flex: 1, justifyContent: 'center' },
+ cardImage: {
+  width: '100%',
+  height: '100%',
+  resizeMode: 'cover',
+  borderRadius: 25,
+  flex: 1,
+},
+ cardOverlay: {
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  paddingHorizontal: 20,
+  paddingVertical: 25,
+  backgroundColor: '', // subtle fade for readability
+},
+cardInfo: {
+  flexDirection: 'column',
+},
   cardBrand: { fontSize: 12, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  cardTitle: { fontSize: 22, fontWeight: '700', color: '#000000', lineHeight: 26, marginBottom: 4 },
-  cardSubtitle: { fontSize: 14, color: '#666666', fontWeight: '400', marginBottom: 8, lineHeight: 18 },
-  cardPrice: { fontSize: 18, fontWeight: '800', color: '#000000', marginBottom: 12 },
+ cardTitle: {
+  fontSize: 22,
+  fontWeight: '800',
+  color: '#fff',
+  marginBottom: 6,
+  textShadowColor: 'rgba(0, 0, 0, 0.4)',
+  textShadowOffset: { width: 1, height: 1 },
+  textShadowRadius: 3,
+},
+cardSubtitle: {
+  fontSize: 14,
+  color: '#e0e0e0',
+  marginBottom: 4,
+},
+cardPrice: {
+  fontSize: 18,
+  fontWeight: '700',
+  color: '#fff',
+  marginTop: 8,
+},
+buyNowButton: {
+  alignSelf: 'flex-start',
+  backgroundColor: '#fff',
+  borderRadius: 20,
+  paddingHorizontal: 18,
+  paddingVertical: 10,
+  marginTop: 12,
+},
+buyNowText: {
+  color: '#000',
+  fontWeight: '700',
+  fontSize: 14,
+},
   tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   tagText: { fontSize: 11, fontWeight: '500', color: '#666666' },

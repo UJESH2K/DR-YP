@@ -22,7 +22,7 @@ export default function SimpleDeck() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Casa Fashion App</Text>
+      <Text style={styles.title}>DRYP Fashion App</Text>
       
       <View style={styles.card}>
         <Image 

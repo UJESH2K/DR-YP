@@ -35,9 +35,47 @@ export default function WishlistScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>CASA</Text>
-        <Text style={styles.headerSubtitle}>Liked Items</Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 10,
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#eaeaea',
+        }}
+      >
+        {/* Logo */}
+        <Text
+          style={{
+            fontSize: 33,
+            fontWeight: '00',
+            color: '#000',
+            letterSpacing: 1.5,
+          }}
+        >
+          DRYP
+        </Text>
+
+        {/* Liked Items Text */}
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#000',
+            letterSpacing: 0.5,
+          }}
+        >
+          Liked Items
+        </Text>
+
+        {/* Cart Icon */}
+        <Pressable>
+          <Text style={{ fontSize: 31, color: '#000' }}>🛒</Text>
+        </Pressable>
       </View>
 
       {wishlistItems.length === 0 ? (
@@ -96,10 +134,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '300',
+    fontSize: 32,
+    fontWeight: '900',
     color: '#000000',
-    letterSpacing: 1,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   headerSubtitle: {
     fontSize: 16,

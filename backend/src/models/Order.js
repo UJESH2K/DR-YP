@@ -8,13 +8,13 @@ const OrderItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const OrderSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  user: { type: mongoose.Schema.Types.Mixed, required: true }, // Allow both ObjectId and string for anonymous users
   vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true },
   items: { type: [OrderItemSchema], required: true },
   totalAmount: { type: Number, required: true },
   status: { 
     type: String, 
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'refunded'],
+    enum: ['cart', 'pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'refunded'],
     default: 'pending'
   },
   paymentStatus: {
@@ -23,6 +23,7 @@ const OrderSchema = new mongoose.Schema({
     default: 'pending'
   },
   shippingAddress: { type: String, required: true },
+  orderNumber: { type: String, unique: true, sparse: true }, // Unique order number, sparse allows nulls
   razorpayOrderId: { type: String },
   razorpayPaymentId: { type: String },
   razorpaySignature: { type: String },

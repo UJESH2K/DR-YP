@@ -50,7 +50,7 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ message: err.message || 'Server error' });
 });
 
-const PORT = process.env.PORT || 5001; // Changed to 5001 to avoid conflicts
+const PORT = process.env.PORT || 5000; // Backend runs on port 5000
 
 // Start server
 (async () => {
@@ -59,7 +59,7 @@ const PORT = process.env.PORT || 5001; // Changed to 5001 to avoid conflicts
   } catch (error) {
     console.warn('Starting server without database connection:', error.message);
   }
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT} and accessible from all interfaces`));
 })();
 
 module.exports = app;

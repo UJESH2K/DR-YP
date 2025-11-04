@@ -10,18 +10,41 @@ import {
   StatusBar,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-
+import { Ionicons } from '@expo/vector-icons'
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('')
+
+  const brands = [
+    'Nike', 'Adidas', 'Zara', 'H&M', 'Uniqlo', 'Puma', 'Gucci', 'Louis Vuitton', 'Chanel', 'Dior'
+  ]
+
+  const trendingItems = [
+    { id: 1, title: 'Oversized Hoodie', price: 89, image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300&h=400&fit=crop', brand: 'Nike' },
+    { id: 2, title: 'Vintage Jeans', price: 129, image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=300&h=400&fit=crop', brand: 'Zara' },
+    { id: 3, title: 'Sneakers', price: 199, image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=300&h=400&fit=crop', brand: 'Adidas' },
+  ]
+
+  const newArrivals = [
+    { id: 4, title: 'Silk Dress', price: 299, image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=300&h=400&fit=crop', brand: 'H&M' },
+    { id: 5, title: 'Leather Jacket', price: 399, image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=300&h=400&fit=crop', brand: 'Uniqlo' },
+    { id: 6, title: 'Summer Top', price: 59, image: 'https://images.unsplash.com/photo-1583743814966-8936f37f4678?w=300&h=400&fit=crop', brand: 'Zara' },
+  ]
+
+  const menItems = [
+    { id: 7, title: 'Formal Shirt', price: 79, image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=300&h=400&fit=crop', brand: 'H&M' },
+    { id: 8, title: 'Chinos', price: 99, image: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=300&h=400&fit=crop', brand: 'Uniqlo' },
+  ]
+
+  const womenItems = [
+    { id: 9, title: 'Floral Dress', price: 149, image: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=300&h=400&fit=crop', brand: 'Zara' },
+    { id: 10, title: 'Blazer', price: 199, image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=300&h=400&fit=crop', brand: 'H&M' },
+  ]
 
   const categories = [
     { id: 'men', name: 'MEN', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=center', color: '#000000' },
     { id: 'women', name: 'WOMEN', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=600&fit=crop&crop=center', color: '#8B5CF6' },
   ]
 
-  const brands = []
-  const trending = []
-  const newArrivals = []
   const youMightLike = []
   const related = []
 
@@ -29,26 +52,74 @@ export default function SearchScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>CASA</Text>
-        <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for something..."
-            placeholderTextColor="#999999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-        <Pressable style={styles.notificationButton}>
-          <Text style={styles.notificationIcon}>🔔</Text>
-        </Pressable>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 10,
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#eaeaea',
+        }}
+      >
+        {/* Logo */}
+        <Text
+          style={{
+            fontSize: 33,
+            fontWeight: '00',
+            color: '#000',
+            letterSpacing: 1.5,
+          }}
+        >
+          DRYP
+        </Text>
+
+            {/* Search */}
+            <Pressable
+              onPress={() => router.push('/(tabs)/search')}
+              style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#fff',
+            borderColor: '#000',        // ✅ solid black border
+            borderWidth: 2,             // ✅ make it bold/visible
+            borderRadius: 25,           // ✅ rounded corners
+            paddingHorizontal: 18,
+            paddingVertical: 2,
+            flex: 1,
+            marginHorizontal: 19,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+            elevation: 3, 
+              }}
+            >
+              <Text style={{ fontSize: 16, color: '#333', marginRight: 6 }}>🔍</Text>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: '100',
+                  color: '#111',
+                  letterSpacing: 0.2,
+                }}
+              >
+                Search...
+              </Text>
+            </Pressable>
+
+        {/* Cart Icon */}
+        <Pressable onPress={() => router.push('/cart')}>
+  <Ionicons name="cart-outline" size={31} color="#000" />
+</Pressable>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Categories Section */}
-        <View style={styles.categoriesContainer}>
+        {/* <View style={styles.categoriesContainer}>
           {categories.map((category) => (
             <Pressable key={category.id} style={styles.categoryCard}>
               <Image source={{ uri: category.image }} style={styles.categoryImage} />
@@ -57,7 +128,7 @@ export default function SearchScreen() {
               </View>
             </Pressable>
           ))}
-        </View>
+        </View> */}
 
         {/* Brands Section */}
         <View style={styles.section}>
@@ -78,33 +149,61 @@ export default function SearchScreen() {
         {/* Trending Now Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>TRENDING NOW</Text>
-          {trending.length === 0 ? (
-            <Text style={styles.emptyText}>No data available</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {trending.map((item, index) => (
-                <View key={index} style={styles.trendingCard}>
-                  <Text>{item}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {trendingItems.map((item) => (
+              <View key={item.id} style={styles.productCard}>
+                <Image source={{ uri: item.image }} style={styles.productImage} />
+                <Text style={styles.productTitle}>{item.title}</Text>
+                <Text style={styles.productBrand}>{item.brand}</Text>
+                <Text style={styles.productPrice}>${item.price}</Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
 
         {/* New Arrivals Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>NEW ARRIVALS</Text>
-          {newArrivals.length === 0 ? (
-            <Text style={styles.emptyText}>No data available</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {newArrivals.map((item, index) => (
-                <View key={index} style={styles.arrivalCard}>
-                  <Text>{item}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {newArrivals.map((item) => (
+              <View key={item.id} style={styles.productCard}>
+                <Image source={{ uri: item.image }} style={styles.productImage} />
+                <Text style={styles.productTitle}>{item.title}</Text>
+                <Text style={styles.productBrand}>{item.brand}</Text>
+                <Text style={styles.productPrice}>${item.price}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Men Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>MEN</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {menItems.map((item) => (
+              <View key={item.id} style={styles.productCard}>
+                <Image source={{ uri: item.image }} style={styles.productImage} />
+                <Text style={styles.productTitle}>{item.title}</Text>
+                <Text style={styles.productBrand}>{item.brand}</Text>
+                <Text style={styles.productPrice}>${item.price}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Women Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>WOMEN</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {womenItems.map((item) => (
+              <View key={item.id} style={styles.productCard}>
+                <Image source={{ uri: item.image }} style={styles.productImage} />
+                <Text style={styles.productTitle}>{item.title}</Text>
+                <Text style={styles.productBrand}>{item.brand}</Text>
+                <Text style={styles.productPrice}>${item.price}</Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
 
         {/* You Might Like Section */}
@@ -161,10 +260,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '300',
+    fontSize: 32,
+    fontWeight: '900',
     color: '#000000',
-    letterSpacing: 1,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   notificationButton: {
     padding: 8,
@@ -288,5 +390,40 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 100,
+  },
+  productCard: {
+    width: 150,
+    marginRight: 15,
+    backgroundColor: '#ffffff',
+    borderRadius: 15,
+    padding: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  productImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 10,
+    backgroundColor: '#f5f5f5',
+  },
+  productTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  productBrand: {
+    fontSize: 12,
+    color: '#666666',
+    marginBottom: 4,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
   },
 })

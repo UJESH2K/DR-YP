@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const LikeSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  user: { type: mongoose.Schema.Types.Mixed, required: true, index: true }, // Allow both ObjectId and string for anonymous users
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
 }, { timestamps: true });
 

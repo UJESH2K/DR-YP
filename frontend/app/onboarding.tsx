@@ -141,7 +141,7 @@ export default function Onboarding() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Welcome to Casa</Text>
+        <Text style={styles.title}>Welcome to DRYP</Text>
         <Text style={styles.subtitle}>
           Choose your style preferences to get personalized recommendations
         </Text>
