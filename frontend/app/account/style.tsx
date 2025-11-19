@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,22 @@ import {
   ScrollView,
   Pressable,
   StatusBar,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useAuthStore } from '../../src/state/auth';
+import { apiCall } from '../../src/lib/api';
 
 export default function StyleScreen() {
-  const router = useRouter()
+  const router = useRouter();
+  const { user, updateUser } = useAuthStore();
 
-  const [selectedStyles, setSelectedStyles] = useState(['casual', 'streetwear'])
-  const [selectedColors, setSelectedColors] = useState(['black', 'white', 'blue'])
-  const [selectedBrands, setSelectedBrands] = useState(['nike', 'adidas'])
+  const [selectedStyles, setSelectedStyles] = useState(user?.preferences?.categories || []);
+  const [selectedColors, setSelectedColors] = useState(user?.preferences?.colors || []);
+  const [selectedBrands, setSelectedBrands] = useState(user?.preferences?.brands || []);
+  const [isLoading, setIsLoading] = useState(false);
 
   const styleOptions = [
     { id: 'casual', name: 'Casual', icon: '👕' },
@@ -24,7 +30,7 @@ export default function StyleScreen() {
     { id: 'vintage', name: 'Vintage', icon: '🕶️' },
     { id: 'minimalist', name: 'Minimalist', icon: '⚪' },
     { id: 'bohemian', name: 'Bohemian', icon: '🌸' },
-  ]
+  ];
 
   const colorOptions = [
     { id: 'black', name: 'Black', color: '#000000' },
@@ -35,7 +41,7 @@ export default function StyleScreen() {
     { id: 'pink', name: 'Pink', color: '#E91E63' },
     { id: 'gray', name: 'Gray', color: '#9E9E9E' },
     { id: 'brown', name: 'Brown', color: '#795548' },
-  ]
+  ];
 
   const brandOptions = [
     { id: 'nike', name: 'Nike' },
@@ -44,15 +50,44 @@ export default function StyleScreen() {
     { id: 'hm', name: 'H&M' },
     { id: 'uniqlo', name: 'Uniqlo' },
     { id: 'gucci', name: 'Gucci' },
-  ]
+  ];
 
   const toggleSelection = (array: string[], setArray: (arr: string[]) => void, item: string) => {
     if (array.includes(item)) {
-      setArray(array.filter(i => i !== item))
+      setArray(array.filter(i => i !== item));
     } else {
-      setArray([...array, item])
+      setArray([...array, item]);
     }
-  }
+  };
+
+  const handleSave = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const preferences = {
+        categories: selectedStyles,
+        colors: selectedColors,
+        brands: selectedBrands,
+      };
+
+      const updatedUser = await apiCall('/api/users/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(preferences),
+      });
+
+      if (updatedUser) {
+        await updateUser(updatedUser);
+        Alert.alert('Success', 'Your preferences have been saved!');
+      } else {
+        throw new Error('Failed to save preferences');
+      }
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      Alert.alert('Error', 'Could not save your preferences. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -142,14 +177,18 @@ export default function StyleScreen() {
           </View>
         </View>
 
-        <Pressable style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Save Preferences</Text>
+        <Pressable style={[styles.saveButton, isLoading && styles.disabledButton]} onPress={handleSave} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Preferences</Text>
+          )}
         </Pressable>
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -290,7 +329,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  disabledButton: {
+    backgroundColor: '#cccccc',
+  },
   bottomSpacing: {
     height: 100,
   },
-})
+});

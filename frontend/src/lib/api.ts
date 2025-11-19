@@ -1,11 +1,12 @@
-// Simple API service to send data to backend without changing frontend structure
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 // Log the API URL being used for debugging
 console.log('🌐 API Base URL:', API_BASE_URL);
 
-// Simple fetch wrapper with error handling
-async function apiCall(endpoint: string, options: RequestInit = {}) {
+// Simple fetch wrapper with error handling and auth token injection
+export async function apiCall(endpoint: string, options: RequestInit = {}) {
   try {
     const fullUrl = `${API_BASE_URL}${endpoint}`;
     console.log(`🚀 FRONTEND API CALL: ${options.method || 'GET'} ${fullUrl}`);
@@ -13,19 +14,27 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
       console.log(`📤 Sending data:`, JSON.parse(options.body as string));
     }
 
+    const token = await AsyncStorage.getItem('user_token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
+      headers,
     });
 
     const data = await response.json();
     
     if (!response.ok) {
       console.warn(`❌ API call failed: ${endpoint}`, response.status, data);
-      return null;
+      // Return the whole data object so the caller can get the message
+      return data;
     }
 
     console.log(`✅ API success: ${endpoint}`, data);
@@ -33,7 +42,7 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   } catch (error) {
     console.error(`❌ API error: ${endpoint}`, error);
     console.error(`❌ Full URL was: ${API_BASE_URL}${endpoint}`);
-    console.error(`❌ Error details:`, error.message, error.code);
+    // It's better to return null or throw, so the caller knows it failed catastrophically
     return null;
   }
 }
@@ -72,18 +81,6 @@ export async function sendInteraction(action: 'like' | 'dislike' | 'cart', itemI
       }),
     });
   }
-}
-
-// Send user authentication to backend
-export async function sendAuth(email: string, name: string) {
-  return apiCall('/api/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({
-      email,
-      name,
-      password: 'temp_password', // You can improve this later
-    }),
-  });
 }
 
 // Fetch products from backend (optional - can be used to replace static data later)

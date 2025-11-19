@@ -67,7 +67,7 @@ export default function CheckoutScreen() {
           text: 'OK', 
           onPress: () => {
             clearCart();
-            router.replace('/deck');
+            router.replace('/(tabs)/home');
           }
         }
       ]
@@ -237,7 +237,7 @@ export default function CheckoutScreen() {
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Pressable 
             style={styles.continueShoppingButton} 
-            onPress={() => router.push('/deck')}
+            onPress={() => router.push('/(tabs)/home')}
           >
             <Text style={styles.continueShoppingText}>Continue Shopping</Text>
           </Pressable>

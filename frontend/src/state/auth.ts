@@ -1,157 +1,126 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { sendAuth } from '../lib/api';
+import { apiCall } from '../lib/api';
+import { Alert } from 'react-native';
 
+// This should match the User model from the backend
 export interface User {
-  id: string;
-  email?: string;
-  phone?: string;
-  name?: string;
+  _id: string;
+  email: string;
+  name: string;
+  role: 'user' | 'vendor' | 'admin';
+  createdAt: string;
   preferences: {
     categories: string[];
-    priceRange: { min: number; max: number };
+    colors: string[];
     brands: string[];
   };
-  createdAt: string;
 }
 
 interface AuthState {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   // Actions
-  login: (email: string, otp: string) => Promise<boolean>;
-  loginWithPhone: (phone: string, otp: string) => Promise<boolean>;
-  sendOTP: (emailOrPhone: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<User | null>;
+  login: (email: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
-  updateUser: (updates: Partial<User>) => Promise<void>;
   loadUser: () => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  token: null,
   isAuthenticated: false,
   isLoading: false,
 
-  sendOTP: async (emailOrPhone: string) => {
+  register: async (name, email, password) => {
     set({ isLoading: true });
     try {
-      // Simulate OTP sending
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log(`OTP sent to ${emailOrPhone}`);
-      return true;
+      const response = await apiCall('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      if (response && response.token) {
+        const { token, user } = response;
+        set({ user, token, isAuthenticated: true });
+        await AsyncStorage.setItem('user_token', token);
+        await AsyncStorage.setItem('user_data', JSON.stringify(user));
+        return user;
+      } else {
+        Alert.alert('Registration Failed', response?.message || 'An unknown error occurred.');
+        return null;
+      }
     } catch (error) {
-      console.error('Error sending OTP:', error);
-      return false;
+      console.error('Error registering:', error);
+      Alert.alert('Registration Error', 'An unexpected error occurred. Please try again.');
+      return null;
     } finally {
       set({ isLoading: false });
     }
   },
 
-  login: async (email: string, otp: string) => {
+  login: async (email, password) => {
     set({ isLoading: true });
     try {
-      // Simulate OTP verification
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (otp === '123456') { // Mock OTP verification
-        const user: User = {
-          id: `user_${Date.now()}`,
-          email,
-          name: email.split('@')[0],
-          preferences: {
-            categories: [],
-            priceRange: { min: 0, max: 1000 },
-            brands: [],
-          },
-          createdAt: new Date().toISOString(),
-        };
-        
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        set({ user, isAuthenticated: true });
-        // Send user data to backend API
-        try { sendAuth(email, user.name || email.split('@')[0]) } catch {}
-        return true;
+      const response = await apiCall('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response && response.token) {
+        const { token, user } = response;
+        set({ user, token, isAuthenticated: true });
+        await AsyncStorage.setItem('user_token', token);
+        await AsyncStorage.setItem('user_data', JSON.stringify(user));
+        return user;
+      } else {
+        Alert.alert('Login Failed', response?.message || 'Invalid credentials.');
+        return null;
       }
-      
-      return false;
     } catch (error) {
       console.error('Error logging in:', error);
-      return false;
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  loginWithPhone: async (phone: string, otp: string) => {
-    set({ isLoading: true });
-    try {
-      // Simulate OTP verification
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (otp === '123456') { // Mock OTP verification
-        const user: User = {
-          id: `user_${Date.now()}`,
-          phone,
-          name: `User ${phone.slice(-4)}`,
-          preferences: {
-            categories: [],
-            priceRange: { min: 0, max: 1000 },
-            brands: [],
-          },
-          createdAt: new Date().toISOString(),
-        };
-        
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        set({ user, isAuthenticated: true });
-        // Send user data to backend API
-        try { sendAuth(phone, user.name || `User ${phone.slice(-4)}`) } catch {}
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error logging in with phone:', error);
-      return false;
+      Alert.alert('Login Error', 'An unexpected error occurred. Please try again.');
+      return null;
     } finally {
       set({ isLoading: false });
     }
   },
 
   logout: async () => {
+    set({ isLoading: true });
     try {
-      await AsyncStorage.removeItem('user');
-      set({ user: null, isAuthenticated: false });
+      await AsyncStorage.removeItem('user_token');
+      await AsyncStorage.removeItem('user_data');
+      set({ user: null, token: null, isAuthenticated: false });
     } catch (error) {
       console.error('Error logging out:', error);
-    }
-  },
-
-  updateUser: async (updates: Partial<User>) => {
-    const { user } = get();
-    if (!user) return;
-
-    try {
-      const updatedUser = { ...user, ...updates };
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      set({ user: updatedUser });
-    } catch (error) {
-      console.error('Error updating user:', error);
+    } finally {
+      set({ isLoading: false });
     }
   },
 
   loadUser: async () => {
     set({ isLoading: true });
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
+      const token = await AsyncStorage.getItem('user_token');
+      const userData = await AsyncStorage.getItem('user_data');
+      if (token && userData) {
         const user = JSON.parse(userData);
-        set({ user, isAuthenticated: true });
+        set({ user, token, isAuthenticated: true });
       }
     } catch (error) {
       console.error('Error loading user:', error);
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  updateUser: async (user: User) => {
+    set({ user });
+    await AsyncStorage.setItem('user_data', JSON.stringify(user));
   },
 }));

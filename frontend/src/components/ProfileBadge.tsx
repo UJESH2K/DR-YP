@@ -9,7 +9,11 @@ export function ProfileBadge() {
   const insets = useSafeAreaInsets();
 
   const handlePress = () => {
-    router.push('/profile');
+    if (isAuthenticated) {
+      router.push('/profile');
+    } else {
+      router.push('/login');
+    }
   };
 
   return (

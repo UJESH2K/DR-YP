@@ -19,6 +19,11 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ['user', 'vendor', 'admin'], default: 'user' },
   isActive: { type: Boolean, default: true },
   likedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+  preferences: {
+    categories: { type: [String], default: [] },
+    colors: { type: [String], default: [] },
+    brands: { type: [String], default: [] },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

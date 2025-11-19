@@ -11,6 +11,7 @@ const vendorRoutes = require('./src/routes/vendors');
 const orderRoutes = require('./src/routes/orders');
 const likeRoutes = require('./src/routes/likes');
 const paymentRoutes = require('./src/routes/payments');
+const userRoutes = require('./src/routes/users');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/likes', likeRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/users', userRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -7,195 +7,218 @@ import {
   StyleSheet, 
   StatusBar,
   Dimensions,
-  Platform,
   ActivityIndicator,
   Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CATEGORIES } from '../src/data/categories';
+import { useAuthStore } from '../src/state/auth';
+import { apiCall } from '../src/lib/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Data copied from style.tsx for onboarding
+const styleOptions = [
+  { id: 'casual', name: 'Casual', icon: '👕' },
+  { id: 'formal', name: 'Formal', icon: '👔' },
+  { id: 'streetwear', name: 'Streetwear', icon: '🧢' },
+  { id: 'vintage', name: 'Vintage', icon: '🕶️' },
+  { id: 'minimalist', name: 'Minimalist', icon: '⚪' },
+  { id: 'bohemian', name: 'Bohemian', icon: '🌸' },
+];
+
+const colorOptions = [
+  { id: 'black', name: 'Black', color: '#000000' },
+  { id: 'white', name: 'White', color: '#FFFFFF' },
+  { id: 'blue', name: 'Blue', color: '#2196F3' },
+  { id: 'red', name: 'Red', color: '#F44336' },
+  { id: 'green', name: 'Green', color: '#4CAF50' },
+  { id: 'pink', name: 'Pink', color: '#E91E63' },
+  { id: 'gray', name: 'Gray', color: '#9E9E9E' },
+  { id: 'brown', name: 'Brown', color: '#795548' },
+];
+
+const brandOptions = [
+  { id: 'nike', name: 'Nike' },
+  { id: 'adidas', name: 'Adidas' },
+  { id: 'zara', name: 'Zara' },
+  { id: 'hm', name: 'H&M' },
+  { id: 'uniqlo', name: 'Uniqlo' },
+  { id: 'gucci', name: 'Gucci' },
+];
+
+type OnboardingStep = 'categories' | 'colors' | 'brands';
+
 export default function Onboarding() {
   const router = useRouter();
-  const [selected, setSelected] = useState<string[]>([]);
+  const { user, updateUser } = useAuthStore();
+  
+  const [step, setStep] = useState<OnboardingStep>('categories');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(user?.preferences?.categories || []);
+  const [selectedColors, setSelectedColors] = useState<string[]>(user?.preferences?.colors || []);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(user?.preferences?.brands || []);
   const [isLoading, setIsLoading] = useState(false);
-  const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
-    console.log('Onboarding screen mounted');
-    // Add a small delay to ensure everything is ready
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, Platform.OS === 'android' ? 500 : 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Preload previously saved categories so user can edit preferences
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const saved = await AsyncStorage.getItem('categories:selected');
-        if (saved && mounted) {
-          const arr = JSON.parse(saved) as string[];
-          if (Array.isArray(arr) && arr.length) setSelected(arr);
-        }
-      } catch (e) {
-        // ignore and keep default empty selection
-      }
-    })();
-    return () => { mounted = false };
-  }, []);
-
-  const toggle = (key: string) => {
-    setSelected((prev) =>
-      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
-    );
+  const toggleSelection = (array: string[], setArray: (arr: string[]) => void, item: string) => {
+    if (array.includes(item)) {
+      setArray(array.filter(i => i !== item));
+    } else {
+      setArray([...array, item]);
+    }
   };
 
-  const continueNext = async () => {
+  const handleNext = () => {
+    if (step === 'categories') {
+      setStep('colors');
+    } else if (step === 'colors') {
+      setStep('brands');
+    }
+  };
+
+  const handleBack = () => {
+    if (step === 'brands') {
+      setStep('colors');
+    } else if (step === 'colors') {
+      setStep('categories');
+    }
+  };
+
+  const finishOnboarding = async () => {
     if (isLoading) return;
     
     setIsLoading(true);
     try {
-      console.log('Selected categories before saving:', selected);
+      const preferences = {
+        categories: selectedCategories,
+        colors: selectedColors,
+        brands: selectedBrands,
+      };
+
+      const updatedUser = await apiCall('/api/users/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(preferences),
+      });
+
+      if (updatedUser) {
+        await updateUser(updatedUser);
+        console.log('User preferences saved to backend and state updated.');
+      } else {
+        throw new Error('Failed to save preferences');
+      }
       
-      // Add timeout for AsyncStorage operation
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Save operation timeout')), 5000)
-      );
-      
-      const savePromise = AsyncStorage.setItem('categories:selected', JSON.stringify(selected));
-      await Promise.race([savePromise, timeoutPromise]);
-      
-      console.log('Categories saved successfully');
-      console.log('Navigating to deck...');
-      
-      // Add small delay before navigation for Android
-      setTimeout(() => {
-        router.replace('/deck');
-      }, Platform.OS === 'android' ? 200 : 0);
+      router.replace('/(tabs)/home');
       
     } catch (error) {
-      console.error('Error saving categories:', error);
+      console.error('Error saving preferences:', error);
       setIsLoading(false);
-      
-      // Show alert but allow navigation anyway
-      Alert.alert(
-        'Warning', 
-        'Could not save preferences, but you can continue.',
-        [
-          {
-            text: 'Continue Anyway',
-            onPress: () => {
-              setTimeout(() => {
-                router.replace('/deck');
-              }, 100);
-            }
-          }
-        ]
-      );
+      Alert.alert('Error', 'Could not save your preferences. Please try again.', [{ text: 'OK' }]);
     }
   };
 
-  if (!isReady) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000000" />
-          <Text style={styles.loadingText}>Setting up...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const renderContent = () => {
+    switch (step) {
+      case 'categories':
+        return (
+          <FlatList
+            key="categories"
+            data={styleOptions}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            contentContainerStyle={styles.grid}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.optionCard, selectedCategories.includes(item.id) && styles.selectedCard]}
+                onPress={() => toggleSelection(selectedCategories, setSelectedCategories, item.id)}
+              >
+                <Text style={styles.optionIcon}>{item.icon}</Text>
+                <Text style={[styles.optionText, selectedCategories.includes(item.id) && styles.selectedText]}>
+                  {item.name}
+                </Text>
+              </Pressable>
+            )}
+          />
+        );
+      case 'colors':
+        return (
+          <FlatList
+            key="colors"
+            data={colorOptions}
+            keyExtractor={(item) => item.id}
+            numColumns={4}
+            contentContainerStyle={styles.grid}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.colorOption, { backgroundColor: item.color }, selectedColors.includes(item.id) && styles.selectedColor]}
+                onPress={() => toggleSelection(selectedColors, setSelectedColors, item.id)}
+              >
+                {selectedColors.includes(item.id) && <Text style={styles.checkmark}>✓</Text>}
+              </Pressable>
+            )}
+          />
+        );
+      case 'brands':
+        return (
+          <FlatList
+            key="brands"
+            data={brandOptions}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            contentContainerStyle={styles.grid}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.brandOption, selectedBrands.includes(item.id) && styles.selectedBrand]}
+                onPress={() => toggleSelection(selectedBrands, setSelectedBrands, item.id)}
+              >
+                <Text style={[styles.brandText, selectedBrands.includes(item.id) && styles.selectedBrandText]}>
+                  {item.name}
+                </Text>
+              </Pressable>
+            )}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
-  const renderCategoryItem = ({ item }: { item: { key: string; label: string } }) => (
-    <Pressable
-      onPress={() => toggle(item.key)}
-      style={[
-        styles.categoryItem,
-        selected.includes(item.key) ? styles.selected : styles.unselected
-      ]}
-    >
-      <View style={styles.categoryContent}>
-        <Text style={[
-          styles.categoryText,
-          selected.includes(item.key) ? styles.selectedText : styles.unselectedText
-        ]}>
-          {item.label}
-        </Text>
-        {selected.includes(item.key) && (
-          <Text style={styles.checkmark}>✓</Text>
-        )}
-      </View>
-    </Pressable>
-  );
+  const getTitle = () => {
+    switch (step) {
+      case 'categories': return 'Choose Your Styles';
+      case 'colors': return 'Select Favorite Colors';
+      case 'brands': return 'Pick Preferred Brands';
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Welcome to DRYP</Text>
-        <Text style={styles.subtitle}>
-          Choose your style preferences to get personalized recommendations
-        </Text>
+        <Text style={styles.title}>{getTitle()}</Text>
+        <Text style={styles.subtitle}>Help us personalize your experience.</Text>
       </View>
 
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
-        <Text style={styles.progressText}>
-          {selected.length} of {CATEGORIES.length} selected
-        </Text>
-        <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { width: `${(selected.length / CATEGORIES.length) * 100}%` }
-            ]} 
-          />
-        </View>
-      </View>
+      {renderContent()}
 
-      {/* Categories */}
-      <FlatList
-        data={CATEGORIES}
-        keyExtractor={(item) => item.key}
-        renderItem={renderCategoryItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-      />
-
-      {/* Continue Button */}
-      <View style={styles.bottomContainer}>
-        <Pressable
-          onPress={continueNext}
-          style={[
-            styles.continueButton,
-            selected.length ? styles.continueEnabled : styles.continueDisabled
-          ]}
-          disabled={!selected.length}
-        >
-          <Text style={[
-            styles.continueText,
-            selected.length ? styles.continueEnabledText : styles.continueDisabledText
-          ]}>
-            {selected.length ? 'Start Discovering' : 'Select at least one category'}
-          </Text>
-        </Pressable>
-        
-        {selected.length > 0 && (
-          <Text style={styles.hintText}>
-            You can always change your preferences later
-          </Text>
+      <View style={styles.footer}>
+        {step !== 'categories' && (
+          <Pressable style={styles.backButton} onPress={handleBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
         )}
+        <Pressable
+          style={[styles.nextButton, isLoading && styles.disabledButton]}
+          onPress={step === 'brands' ? finishOnboarding : handleNext}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.nextButtonText}>
+              {step === 'brands' ? 'Finish' : 'Next'}
+            </Text>
+          )}
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -207,137 +230,130 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   header: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    padding: 24,
     alignItems: 'center',
   },
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#000000',
-    textAlign: 'center',
+    color: '#1a1a1a',
     marginBottom: 8,
-    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: '#666666',
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 20,
   },
-  progressContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-  },
-  progressText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#888888',
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#000000',
-    borderRadius: 2,
-  },
-  listContainer: {
+  grid: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
   },
-  row: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-  },
-  categoryItem: {
-    width: (SCREEN_WIDTH - 48) / 2,
-    marginBottom: 12,
-    borderRadius: 12,
-    borderWidth: 2,
-    overflow: 'hidden',
-  },
-  selected: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  unselected: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e0e0e0',
-  },
-  categoryContent: {
+  optionCard: {
+    flex: 1,
+    margin: 8,
     padding: 20,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 80,
-    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#f8f9fa',
   },
-  categoryText: {
+  selectedCard: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#1a1a1a',
+  },
+  optionIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  optionText: {
     fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center',
-    flex: 1,
+    color: '#1a1a1a',
   },
   selectedText: {
     color: '#ffffff',
   },
-  unselectedText: {
-    color: '#000000',
+  colorOption: {
+    width: (SCREEN_WIDTH - 96) / 4,
+    height: (SCREEN_WIDTH - 96) / 4,
+    borderRadius: (SCREEN_WIDTH - 96) / 8,
+    margin: 8,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedColor: {
+    borderColor: '#ffffff',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   checkmark: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
     color: '#ffffff',
-    marginLeft: 8,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  bottomContainer: {
-    paddingHorizontal: 24,
+  brandOption: {
+    flex: 1,
+    margin: 8,
     paddingVertical: 20,
-    paddingBottom: 40,
-  },
-  continueButton: {
-    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  continueEnabled: {
-    backgroundColor: '#000000',
-  },
-  continueDisabled: {
-    backgroundColor: '#f5f5f5',
-  },
-  continueText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  continueEnabledText: {
-    color: '#ffffff',
-  },
-  continueDisabledText: {
-    color: '#999999',
-  },
-  hintText: {
-    fontSize: 14,
-    color: '#999999',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  loadingContainer: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#f8f9fa',
   },
-  loadingText: {
+  selectedBrand: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#1a1a1a',
+  },
+  brandText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
-    marginTop: 16,
-    textAlign: 'center',
+    color: '#1a1a1a',
+  },
+  selectedBrandText: {
+    color: '#ffffff',
+  },
+  footer: {
+    flexDirection: 'row',
+    padding: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  backButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginRight: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  nextButton: {
+    flex: 2,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
   },
 });

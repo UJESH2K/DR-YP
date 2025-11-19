@@ -1,23 +1,26 @@
-import React from 'react'
-import { Tabs } from 'expo-router'
-import { View, Text, StyleSheet } from 'react-native'
-import Ionicons from 'react-native-vector-icons/Ionicons'
+import React from 'react';
+import { Tabs } from 'expo-router';
+import { View, Text, StyleSheet } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useAuthStore } from '../../src/state/auth';
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
   const getIcon = () => {
     switch (name) {
       case 'home':
-        return focused ? 'home' : 'home-outline'
+        return focused ? 'home' : 'home-outline';
       case 'search':
-        return focused ? 'search' : 'search-outline'
-      case 'wishlist': // this is your cart 🛒
-        return focused ? 'cart' : 'cart-outline'
+        return focused ? 'search' : 'search-outline';
+      case 'wishlist':
+        return focused ? 'heart' : 'heart-outline';
+      case 'cart':
+        return focused ? 'cart' : 'cart-outline';
       case 'profile':
-        return focused ? 'heart' : 'heart-outline'
+        return focused ? 'person' : 'person-outline';
       default:
-        return 'ellipse'
+        return 'ellipse';
     }
-  }
+  };
 
   return (
     <Ionicons
@@ -26,11 +29,12 @@ function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
       color={focused ? '#000' : '#888'}
       style={{ marginBottom: -3 }}
     />
-  )
+  );
 }
 
-
 export default function TabLayout() {
+  const { user } = useAuthStore();
+
   return (
     <Tabs
       screenOptions={{
@@ -69,8 +73,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="wishlist"
         options={{
-          title: 'Liked',
+          title: 'Wishlist',
           tabBarIcon: ({ focused }) => <TabBarIcon name="wishlist" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="cart"
+        options={{
+          title: 'Cart',
+          tabBarIcon: ({ focused }) => <TabBarIcon name="cart" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -81,7 +92,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -92,4 +103,4 @@ const styles = StyleSheet.create({
   iconText: {
     fontSize: 20,
   },
-})
+});

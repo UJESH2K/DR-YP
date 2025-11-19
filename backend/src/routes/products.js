@@ -1,7 +1,42 @@
 const express = require('express');
 const Product = require('../models/Product');
 const Like = require('../models/Like');
+const { protect } = require('../middleware/auth');
+const Vendor = require('../models/Vendor');
 const router = express.Router();
+
+// @route   POST /api/products
+// @desc    Create a new product
+// @access  Private (Vendor only)
+router.post('/', protect, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'vendor') {
+      return res.status(403).json({ message: 'Forbidden: Only vendors can create products' });
+    }
+
+    const vendor = await Vendor.findOne({ owner: req.user._id });
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor profile not found for this user' });
+    }
+
+    const { name, description, price, category, stock, images } = req.body;
+
+    const product = await Product.create({
+      name,
+      description,
+      price,
+      category,
+      stock,
+      images,
+      vendor: vendor._id,
+      brand: vendor.name, // Assuming vendor name is the brand
+    });
+
+    res.status(201).json(product);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // GET /api/products
 router.get('/', async (req, res, next) => {
