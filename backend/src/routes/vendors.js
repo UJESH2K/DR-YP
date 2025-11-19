@@ -41,6 +41,7 @@ router.post('/register', async (req, res, next) => {
     // Create new vendor linked to the user
     const vendor = await Vendor.create({
       name: vendorName,
+      email,
       description,
       owner: user._id,
       address,

@@ -55,9 +55,9 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/products/:id/like
-router.post('/:id/like', async (req, res, next) => {
+router.post('/:id/like', protect, async (req, res, next) => {
   try {
-    const userId = req.user?._id || req.body.userId; // Placeholder
+    const userId = req.user._id;
     const productId = req.params.id;
     await Like.updateOne({ user: userId, product: productId }, {}, { upsert: true });
     await Product.findByIdAndUpdate(productId, { $inc: { likes: 1 } });
@@ -68,9 +68,9 @@ router.post('/:id/like', async (req, res, next) => {
 });
 
 // DELETE /api/products/:id/unlike
-router.delete('/:id/unlike', async (req, res, next) => {
+router.delete('/:id/unlike', protect, async (req, res, next) => {
   try {
-    const userId = req.user?._id || req.body.userId; // Placeholder
+    const userId = req.user._id;
     const productId = req.params.id;
     await Like.deleteOne({ user: userId, product: productId });
     await Product.findByIdAndUpdate(productId, { $inc: { likes: -1 } });

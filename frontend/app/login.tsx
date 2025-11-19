@@ -48,7 +48,7 @@ export default function LoginScreen() {
       }
       
       Alert.alert('Success', `Successfully ${mode === 'login' ? 'logged in' : 'registered'}!`, [
-        { text: 'OK', onPress: () => router.replace(redirectPath) }
+        { text: 'OK', onPress: () => setTimeout(() => router.replace(redirectPath), 0) }
       ]);
     } else {
       // The auth store will show a more specific error

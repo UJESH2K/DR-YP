@@ -1,17 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Image,
-  Platform,
   Pressable,
   StatusBar,
   StyleSheet,
   Text,
   View,
   PanResponder,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -22,12 +21,10 @@ import { useAuthStore } from '../../src/state/auth';
 import type { Item } from '../../src/data/items';
 import { ITEMS } from '../../src/data/items';
 import { getInitialItems, initRecommender, onItemViewed, rankItems, updateModel } from '../../src/lib/recommender';
-import { sendInteraction, checkBackendHealth } from '../../src/lib/api';
+import { sendInteraction } from '../../src/lib/api';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-type LastAction = { action: 'like' | 'dislike' | 'cart'; item: Item; index: number } | null;
 
 export default function HomeScreen() {
   const addToCart = useCartStore((s) => s.addToCart);
@@ -39,9 +36,10 @@ export default function HomeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   const position = useRef(new Animated.ValueXY()).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  const detailsPosition = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   const rotate = position.x.interpolate({
     inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
@@ -79,6 +77,25 @@ export default function HomeScreen() {
     }
   };
 
+  const showDetails = (item: Item) => {
+    setSelectedItem(item);
+    Animated.timing(detailsPosition, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideDetails = () => {
+    Animated.timing(detailsPosition, {
+      toValue: SCREEN_HEIGHT,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setSelectedItem(null);
+    });
+  };
+
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gesture) => {
@@ -89,9 +106,35 @@ export default function HomeScreen() {
         onDecision('like');
       } else if (gesture.dx < -120) {
         onDecision('dislike');
+      } else if (gesture.dy < -120) {
+        if(currentItem) showDetails(currentItem);
+        Animated.spring(position, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: true,
+        }).start();
       } else {
         Animated.spring(position, {
           toValue: { x: 0, y: 0 },
+          useNativeDriver: true,
+        }).start();
+      }
+    },
+  });
+
+  const detailsPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 10, // Only respond to downward drags
+    onPanResponderMove: (_, gesture) => {
+      if (gesture.dy > 0) {
+        detailsPosition.setValue(gesture.dy);
+      }
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy > 100) {
+        hideDetails();
+      } else {
+        Animated.spring(detailsPosition, {
+          toValue: 0,
           useNativeDriver: true,
         }).start();
       }
@@ -143,6 +186,38 @@ export default function HomeScreen() {
   useEffect(() => {
     if (currentItem) onItemViewed(currentItem);
   }, [currentItem]);
+  
+  const renderDetailsView = () => {
+    if (!selectedItem) return null;
+
+    return (
+      <Animated.View
+        style={[styles.detailsView, { transform: [{ translateY: detailsPosition }] }]}
+        {...detailsPanResponder.panHandlers}
+      >
+        <View style={styles.detailsHandleBar} />
+        <ScrollView contentContainerStyle={styles.detailsContent}>
+          <Image source={{ uri: selectedItem.image }} style={styles.detailsImage} />
+          <View style={styles.detailsInfoSection}>
+            <Text style={styles.detailsBrand}>{selectedItem.brand}</Text>
+            <Text style={styles.detailsTitle}>{selectedItem.title}</Text>
+            <Text style={styles.detailsPrice}>{formatPrice(selectedItem.price)}</Text>
+            <View style={styles.detailsTagsContainer}>
+              {selectedItem.tags.map((tag) => (
+                <View key={tag} style={styles.detailsTag}>
+                  <Text style={styles.detailsTagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.detailsDescription}>
+              This is a great product that you will love. It has many features and is of high quality.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            </Text>
+          </View>
+        </ScrollView>
+      </Animated.View>
+    );
+  };
 
   if (loading) {
     return (
@@ -168,7 +243,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>DR-YP</Text>
+        <Text style={styles.headerTitle}>DRYP</Text>
         <Pressable onPress={() => router.push('/(tabs)/search')}>
           <Ionicons name="search-outline" size={28} color="#000" />
         </Pressable>
@@ -180,12 +255,12 @@ export default function HomeScreen() {
             <Image source={{ uri: nextItem.image }} style={styles.cardImage} />
             <View style={styles.infoSection}>
               <Text style={styles.cardBrand}>{nextItem.brand}</Text>
-              <Text style={styles.cardTitle}>{nextItem.title}</Text>
+              <Text style={styles.cardTitle}>DRYP</Text>
             </View>
           </View>
         )}
 
-        <Animated.View
+        {currentItem && <Animated.View
           style={[
             styles.card,
             { transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] },
@@ -215,12 +290,14 @@ export default function HomeScreen() {
               </Pressable>
             </View>
           </View>
-        </Animated.View>
+        </Animated.View>}
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Swipe left to pass, right to like.</Text>
+        <Text style={styles.footerText}>Swipe left to pass, right to like, or up for details.</Text>
       </View>
+      
+      {renderDetailsView()}
     </SafeAreaView>
   );
 }
@@ -239,6 +316,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    zIndex: 10,
   },
   headerTitle: {
     fontSize: 24,
@@ -361,7 +439,79 @@ const styles = StyleSheet.create({
   dislikeOverlay: {
     backgroundColor: 'rgba(255, 0, 0, 0.2)',
   },
+  // Styles for Details Modal
+  detailsView: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '95%',
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 20,
+  },
+  detailsHandleBar: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#ccc',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  detailsContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  detailsImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 20,
+    marginBottom: 20,
+  },
+  detailsInfoSection: {
+    flex: 1,
+  },
+  detailsBrand: {
+    fontSize: 16,
+    color: '#888',
+    marginBottom: 5,
+  },
+  detailsTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  detailsPrice: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 15,
+  },
+  detailsTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  detailsTag: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  detailsTagText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  detailsDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#666',
+  },
 });
-
-
-

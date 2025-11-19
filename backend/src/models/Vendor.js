@@ -10,6 +10,7 @@ const AddressSchema = new mongoose.Schema({
 
 const VendorSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true, index: true },
   description: { type: String, trim: true },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   address: { type: AddressSchema, required: true },
