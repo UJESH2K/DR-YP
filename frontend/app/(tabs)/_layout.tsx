@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/state/auth';
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {

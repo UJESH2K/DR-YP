@@ -20,7 +20,12 @@ const analyticsRoutes = require('./src/routes/analytics'); // Import analytics r
 const app = express();
 
 // Middlewares
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allow all methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allow specific headers
+}));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 

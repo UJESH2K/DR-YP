@@ -51,7 +51,7 @@ export default function WishlistScreen() {
   const handleAddToCart = (item: Item) => {
     try {
       addToCart({
-        id: item.id,
+        productId: item.id,
         title: item.title,
         price: item.price,
         image: item.image,

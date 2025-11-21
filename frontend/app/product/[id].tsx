@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, Pressable, ActivityIndicator, Alert, RefreshControl, FlatList, Dimensions } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +13,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export default function ProductDetailScreen() {
     const { id } = useLocalSearchParams();
-    const { addToCart } = useCartStore();
+    const { cart, addToCart, removeFromCart } = useCartStore();
     const { addToWishlist, removeFromWishlist, isWishlisted } = useWishlistStore();
 
     const [product, setProduct] = useState(null);
@@ -20,9 +21,64 @@ export default function ProductDetailScreen() {
     const [selectedOptions, setSelectedOptions] = useState({});
     const [selectedVariant, setSelectedVariant] = useState(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isInCart, setIsInCart] = useState(false);
 
     const isProductInWishlist = isWishlisted(id as string);
 
+    // Animation values
+    const wishlistScale = useSharedValue(1);
+    const cartScale = useSharedValue(1);
+    const cartBgColor = useSharedValue('#000');
+
+    // Animated styles
+    const animatedWishlistStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: wishlistScale.value }],
+    }));
+    const animatedCartStyle = useAnimatedStyle(() => ({
+        backgroundColor: withTiming(isInCart ? '#4B0082' : '#000', { duration: 300 }),
+        transform: [{ scale: cartScale.value }],
+    }));
+
+    useEffect(() => {
+        // Trigger wishlist animation
+        wishlistScale.value = withSpring(isProductInWishlist ? 1.2 : 1, {}, (isFinished) => {
+            if (isFinished) {
+                wishlistScale.value = withSpring(1);
+            }
+        });
+    }, [isProductInWishlist]);
+
+    useEffect(() => {
+        // Trigger cart animation
+        cartScale.value = withSpring(isInCart ? 1.1 : 1, {}, (isFinished) => {
+            if (isFinished) {
+                cartScale.value = withSpring(1);
+            }
+        });
+    }, [isInCart]);
+
+    useEffect(() => {
+        // Determine if the product/variant is in the cart
+        if (product) {
+            const hasVariants = product.options && product.options.length > 0;
+            let inCart = false;
+            if (hasVariants) {
+                // For a product with variants, we can only determine if it's in the cart
+                // if all options are selected.
+                const allOptionsSelected = product.options.every(opt => selectedOptions[opt.name]);
+                if (allOptionsSelected) {
+                    const cartId = generateCartId(product._id, selectedOptions);
+                    inCart = cart.some(item => item.id === cartId);
+                }
+            } else {
+                // For a product without variants
+                const cartId = generateCartId(product._id, undefined);
+                inCart = cart.some(item => item.id === cartId);
+            }
+            setIsInCart(inCart);
+        }
+    }, [cart, product, selectedOptions]);
+    
     useEffect(() => {
         const fetchProduct = async () => {
             if (!id) return;
@@ -52,15 +108,24 @@ export default function ProductDetailScreen() {
     const handleOptionSelect = (name, value) => {
         setSelectedOptions(prev => ({ ...prev, [name]: value }));
     };
+
+    const generateCartId = (productId, options) => {
+        if (!options || Object.keys(options).length === 0) return productId;
+        const sortedOptions = Object.keys(options).sort().map(key => `${key}-${options[key]}`).join('_');
+        return `${productId}_${sortedOptions}`;
+    };
     
-    const handleAddToCart = () => {
+    const handleCartToggle = () => {
         if (!product) return;
-        const hasVariants = product.options && product.options.length > 0;
-        if (hasVariants && !selectedVariant) {
-            Alert.alert('Please select options', 'You must select all available options before adding to cart.');
-            return;
-        }
-        try {
+
+        if (isInCart) {
+            const cartId = generateCartId(product._id, product.options.length > 0 ? selectedOptions : undefined);
+            removeFromCart(cartId);
+        } else {
+            const hasVariants = product.options && product.options.length > 0;
+            if ((hasVariants && !selectedVariant) || (hasVariants && selectedVariant?.stock === 0) || (!hasVariants && product.stock === 0)) {
+                return; // Button should be disabled, do nothing.
+            }
             addToCart({
                 productId: product._id,
                 title: product.name,
@@ -70,9 +135,6 @@ export default function ProductDetailScreen() {
                 options: hasVariants ? selectedOptions : undefined,
                 quantity: 1,
             });
-            Alert.alert('Success', `${product.name} added to cart!`);
-        } catch (error) {
-            Alert.alert('Error', 'Failed to add item to cart.');
         }
     };
 
@@ -132,16 +194,23 @@ export default function ProductDetailScreen() {
                 <Text style={stockStatus === 'In Stock' ? styles.stockIn : styles.stockOut}>{stockStatus}</Text>
 
                 <View style={styles.actions}>
-                    <Pressable style={styles.wishlistButton} onPress={handleWishlistToggle}>
-                        <Ionicons 
-                            name={isProductInWishlist ? "heart" : "heart-outline"} 
-                            size={24} 
-                            color={isProductInWishlist ? "#FF6B6B" : "#000"} 
-                        />
+                    <Pressable onPress={handleWishlistToggle}>
+                        <Animated.View style={[styles.wishlistButton, animatedWishlistStyle]}>
+                            <Ionicons 
+                                name={isProductInWishlist ? "heart" : "heart-outline"} 
+                                size={30} 
+                                color={isProductInWishlist ? "#FF6B6B" : "#000"} 
+                            />
+                        </Animated.View>
                     </Pressable>
-                    <Pressable style={styles.cartButton} onPress={handleAddToCart}>
-                        <Text style={styles.cartButtonText}>Add to Cart</Text>
-                    </Pressable>
+                    <Animated.Pressable 
+                        style={[styles.cartButton, animatedCartStyle]} 
+                        onPress={handleCartToggle}
+                        disabled={(product.options.length > 0 && !selectedVariant) || stockStatus === 'Out of Stock'}
+                    >
+                        <Ionicons name={isInCart ? "checkmark-done" : "cart-outline"} size={22} color="#fff" />
+                        <Text style={styles.cartButtonText}>{isInCart ? 'Added to Cart' : 'Add to Cart'}</Text>
+                    </Animated.Pressable>
                 </View>
             </View>
         </>
@@ -200,7 +269,21 @@ const styles = StyleSheet.create({
     stockIn: { fontSize: 16, color: '#10B981', fontWeight: '600', marginBottom: 15 },
     stockOut: { fontSize: 16, color: '#EF4444', fontWeight: '600', marginBottom: 15 },
     actions: { flexDirection: 'row', marginTop: 20, gap: 10, paddingBottom: 40 }, // Added paddingBottom
-    wishlistButton: { padding: 15, borderRadius: 15, borderWidth: 1, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
-    cartButton: { flex: 1, padding: 15, borderRadius: 15, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+    wishlistButton: { 
+        padding: 15, 
+        borderRadius: 15, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    cartButton: { 
+        flex: 1, 
+        padding: 15, 
+        borderRadius: 15, 
+        backgroundColor: '#000', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 10,
+    },
     cartButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

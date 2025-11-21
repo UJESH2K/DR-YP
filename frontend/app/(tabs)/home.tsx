@@ -26,6 +26,7 @@ import { initRecommender, rankItems, updateModel } from '../../src/lib/recommend
 import { apiCall, sendInteraction } from '../../src/lib/api';
 import { mapProductsToItems } from '../../src/utils/productMapping';
 import { Ionicons } from '@expo/vector-icons';
+import MultiSelectDropdown from '../../src/components/MultiSelectDropdown';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.4;
@@ -48,14 +49,23 @@ export default function HomeScreen() {
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, any>>({});
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [displayImages, setDisplayImages] = useState<string[]>([]);
   
   const [wishlistItems, setWishlistItems] = useState<Set<string>>(new Set());
   const [recentlyAddedToCart, setRecentlyAddedToCart] = useState<Set<string>>(new Set());
+
+  const [brands, setBrands] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
 
 
 
   const position = useRef(new Animated.ValueXY()).current;
   const detailsPosition = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const nextCardAnimation = useRef(new Animated.Value(0.9)).current;
   
   const imageScrollViewRef = useRef<ScrollView>(null);
   const expandedImageScrollViewRef = useRef<ScrollView>(null);
@@ -68,16 +78,57 @@ export default function HomeScreen() {
     loadUser();
     initRecommender();
     loadRecommendations();
+    fetchFilterOptions();
   }, []);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, [selectedBrands, selectedCategories, selectedColors]);
+
+  useEffect(() => {
+    if (selectedProduct) {
+      const selectedColor = selectedOptions['Color'];
+      if (selectedColor) {
+        const variantWithColor = selectedProduct.variants.find(v => v.options.Color === selectedColor);
+        if (variantWithColor && variantWithColor.images && variantWithColor.images.length > 0) {
+          setDisplayImages(variantWithColor.images);
+          return;
+        }
+      }
+      setDisplayImages(selectedProduct.images || []);
+    } else {
+      setDisplayImages([]);
+    }
+  }, [selectedOptions, selectedProduct]);
   
   const rotate = position.x.interpolate({ inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], outputRange: ['-10deg', '0deg', '10deg'], extrapolate: 'clamp' });
   const likeOpacity = position.x.interpolate({ inputRange: [10, SCREEN_WIDTH / 4], outputRange: [0, 1], extrapolate: 'clamp' });
   const nopeOpacity = position.x.interpolate({ inputRange: [-SCREEN_WIDTH / 4, -10], outputRange: [1, 0], extrapolate: 'clamp' });
 
+  const fetchFilterOptions = async () => {
+    try {
+      const [brandsData, categoriesData, colorsData] = await Promise.all([
+        apiCall('/api/products/brands'),
+        apiCall('/api/products/categories'),
+        apiCall('/api/products/colors'),
+      ]);
+      if (Array.isArray(brandsData)) setBrands(brandsData);
+      if (Array.isArray(categoriesData)) setCategories(categoriesData);
+      if (Array.isArray(colorsData)) setColors(colorsData);
+    } catch (error) {
+      console.warn('Failed to load filter options', error);
+    }
+  };
+
   const loadRecommendations = async () => {
     setLoading(true);
     try {
-      const products = await apiCall('/api/products');
+      const params = new URLSearchParams();
+      if (selectedBrands.length > 0) params.append('brand', selectedBrands.join(','));
+      if (selectedCategories.length > 0) params.append('category', selectedCategories.join(','));
+      if (selectedColors.length > 0) params.append('color', selectedColors.join(','));
+      
+      const products = await apiCall(`/api/products?${params.toString()}`);
       setItems(Array.isArray(products) ? mapProductsToItems(products) : []);
     } catch (error) {
       console.warn('Failed to load products', error);
@@ -162,11 +213,22 @@ export default function HomeScreen() {
 
   const handleAddToCart = (item: Item) => {
     if (!item) return;
+
     const hasVariants = selectedProduct?.options && selectedProduct.options.length > 0;
     if (hasVariants && !selectedVariant) {
       Alert.alert('Please select options', 'You must select all available options before adding to cart.');
       return;
     }
+
+    const availableStock = selectedVariant
+      ? selectedVariant.stock
+      : selectedProduct?.stock;
+    
+    if (availableStock === 0) {
+      Alert.alert('Out of Stock', 'This item is currently out of stock.');
+      return;
+    }
+
     try {
       addToCart({
         productId: item.id,
@@ -255,9 +317,16 @@ export default function HomeScreen() {
     sendInteraction(decision, currentItem.id, user?._id);
     updateModel(decision, currentItem);
 
+    Animated.timing(nextCardAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
     const exitX = decision === 'like' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
     Animated.timing(position, { toValue: { x: exitX, y: 0 }, duration: 300, useNativeDriver: true }).start(() => {
       position.setValue({ x: 0, y: 0 });
+      nextCardAnimation.setValue(0.9);
       setCurrentIndex(prev => {
         if (!items || items.length === 0) return 0;
         return (prev + 1) % items.length;
@@ -275,12 +344,11 @@ export default function HomeScreen() {
   };
 
   const renderImageIndicators = () => {
-    const images = selectedProduct?.images || [];
-    if (images.length <= 1) return null;
+    if (displayImages.length <= 1) return null;
 
     return (
       <View style={styles.imageIndicatorsContainer}>
-        {images.map((_: any, index: number) => (
+        {displayImages.map((_: any, index: number) => (
           <View
             key={index}
             style={[
@@ -306,7 +374,7 @@ export default function HomeScreen() {
     const bottomPadding = 24 + (insets.bottom || 0) + 80;
     const isWishlisted = wishlistItems.has(selectedItem.id);
     const isInCart = isItemInCart(selectedItem.id);
-    const hasMultipleImages = selectedProduct?.images?.length > 1;
+    const hasMultipleImages = displayImages.length > 1;
     
     return (
       <Animated.View
@@ -342,7 +410,7 @@ export default function HomeScreen() {
                 nestedScrollEnabled={true}
                 directionalLockEnabled={true}
               >
-                {selectedProduct?.images?.map((img: string, index: number) => (
+                {displayImages.map((img: string, index: number) => (
                   <Image
                       key={img || index}
                       source={{ uri: `${API_BASE_URL}${img}` }}
@@ -428,8 +496,25 @@ export default function HomeScreen() {
     );
   };
 
+  const clearFilters = () => {
+    setSelectedBrands([]);
+    setSelectedCategories([]);
+    setSelectedColors([]);
+  };
+
   if (loading) return <SafeAreaView style={styles.container}><ActivityIndicator style={styles.centered} size="large" /></SafeAreaView>;
-  if (!items || items.length === 0) return <SafeAreaView style={styles.container}><View style={styles.endContainer}><Text style={styles.endTitle}>No products found.</Text></View></SafeAreaView>;
+  if (!items || items.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.endContainer}>
+          <Text style={styles.endTitle}>No products found.</Text>
+          <Pressable style={styles.clearButton} onPress={clearFilters}>
+            <Text style={styles.clearButtonText}>Clear Filters</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -443,13 +528,50 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <View style={styles.filtersContainer}>
+        <MultiSelectDropdown
+          containerStyle={{ width: 110 }}
+          options={brands}
+          selectedOptions={selectedBrands}
+          onSelectionChange={setSelectedBrands}
+          placeholder="Brands"
+        />
+        <MultiSelectDropdown
+          containerStyle={{ width: 110 }}
+          options={categories}
+          selectedOptions={selectedCategories}
+          onSelectionChange={setSelectedCategories}
+          placeholder="Categories"
+        />
+        <MultiSelectDropdown
+          containerStyle={{ width: 110 }}
+          options={colors}
+          selectedOptions={selectedColors}
+          onSelectionChange={setSelectedColors}
+          placeholder="Colors"
+        />
+      </View>
+
       <View style={styles.cardStack}>
         {nextItem && (
-          <Animated.View style={[styles.card, styles.nextCard]} pointerEvents="none">
+          <Animated.View style={[styles.card, {
+            opacity: 0.8,
+            transform: [
+              {
+                scale: nextCardAnimation,
+              },
+              {
+                translateY: nextCardAnimation.interpolate({
+                  inputRange: [0.9, 1],
+                  outputRange: [40, 0],
+                }),
+              },
+            ],
+          }]} pointerEvents="none">
             <Image source={{ uri: nextItem.image }} style={styles.cardImage} />
             <View style={styles.infoSection}>
               <Text style={styles.cardBrand}>{nextItem.brand}</Text>
-              <Text style={styles.cardTitle}>{nextItem.title}</Text>
+              <Text style={styles.cardTitle} numberOfLines={2} ellipsizeMode="tail">{nextItem.title}</Text>
               <View style={[styles.tagsContainer, { opacity: 0.7 }]}>
                 {nextItem.tags?.slice(0, 3).map((tag: string) => (
                   <View key={tag} style={[styles.tag, { opacity: 0.7 }]}><Text style={styles.tagText}>{tag}</Text></View>
@@ -471,7 +593,7 @@ export default function HomeScreen() {
             <View style={styles.infoSection}>
               <View>
                 <Text style={styles.cardBrand}>{currentItem.brand}</Text>
-                <Text style={styles.cardTitle}>{currentItem.title}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2} ellipsizeMode="tail">{currentItem.title}</Text>
                 <View style={styles.tagsContainer}>
                   {currentItem.tags?.slice(0, 3).map((tag: string) => (<View key={tag} style={styles.tag}><Text style={styles.tagText}>{tag}</Text></View>))}
                 </View>
@@ -492,19 +614,36 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e0e0e0', zIndex: 10 },
   headerIcons: { flexDirection: 'row', gap: 16, },
-  cardStack: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  filtersContainer: {
+    flexDirection: 'row',
+    padding: 10,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  cardStack: { flex: 1, alignItems: 'center', paddingTop: 20 },
   card: { width: SCREEN_WIDTH * 0.9, height: SCREEN_HEIGHT * 0.7, borderRadius: 20, backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 3, position: 'absolute' },
-  nextCard: { opacity: 0.8 },
+  nextCard: { transform: [{ scale: 0.9 }, { translateY: 40 }], opacity: 0.8 },
   cardImage: { width: '100%', height: '70%', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  infoSection: { padding: 20, paddingBottom: 30 },
-  cardBrand: { fontSize: 14, color: '#888', marginBottom: 4 },
-  cardTitle: { fontSize: 20, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 8 },
-  cardPrice: { fontSize: 18, fontWeight: 'bold', color: '#1a1a1a', marginTop: 4, marginBottom: 8 },
+  infoSection: { padding: 15, flexShrink: 1 },
+  cardBrand: { fontSize: 12, color: '#888', marginBottom: 4 },
+  cardTitle: { fontSize: 14, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 8 }, // Reduced font size
+  cardPrice: { fontSize: 16, fontWeight: 'bold', color: '#1a1a1a', marginTop: 4, marginBottom: 8 },
   tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4, marginBottom: 4 },
   tag: { backgroundColor: '#e0e0e0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  tagText: { fontSize: 11, color: '#333' },
+  tagText: { fontSize: 10, color: '#333' },
   endContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   endTitle: { fontSize: 20, fontWeight: '700' },
+  clearButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#2196F3',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: 'white',
+    fontSize: 16,
+  },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20 },
   likeOverlay: { backgroundColor: 'rgba(0, 255, 0, 0.2)' },
   dislikeOverlay: { backgroundColor: 'rgba(255, 0, 0, 0.2)' },

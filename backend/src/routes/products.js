@@ -26,10 +26,13 @@ router.post('/', protect, async (req, res, next) => {
 // @access  Public
 router.get('/', async (req, res, next) => {
   try {
-    const { brand, category, search, vendor, minPrice, maxPrice } = req.query;
+    const { brand, category, color, search, vendor, minPrice, maxPrice } = req.query;
     const filter = { isActive: true };
-    if (brand) filter.brand = brand;
-    if (category) filter.category = category;
+    
+    if (brand) filter.brand = { $in: brand.split(',') };
+    if (category) filter.category = { $in: category.split(',') };
+    if (color) filter.variants = { $elemMatch: { 'options.Color': { $in: color.split(',') } } };
+
     if (search) filter.name = new RegExp(search, 'i');
     if (vendor) filter.vendor = vendor;
     if (minPrice || maxPrice) {
@@ -72,16 +75,20 @@ router.get('/categories', async (req, res, next) => {
   }
 });
 
-// @route   GET /api/products/:id
-// @desc    Get a single product by ID
+// @route   GET /api/products/colors
+// @desc    Get a unique list of all colors
 // @access  Public
-router.get('/:id', async (req, res, next) => {
+router.get('/colors', async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id).populate('vendor', 'name');
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-    res.json(product);
+    const products = await Product.find({ isActive: true }).select('options');
+    const colorSet = new Set();
+    products.forEach(p => {
+      const colorOption = p.options.find(opt => opt.name === 'Color');
+      if (colorOption) {
+        colorOption.values.forEach(color => colorSet.add(color));
+      }
+    });
+    res.json(Array.from(colorSet));
   } catch (error) {
     next(error);
   }
@@ -140,6 +147,21 @@ router.delete('/:id', protect, async (req, res, next) => {
     await Product.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Product removed' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @route   GET /api/products/:id
+// @desc    Get a single product by ID
+// @access  Public
+router.get('/:id', async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id).populate('vendor', 'name');
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    res.json(product);
   } catch (error) {
     next(error);
   }

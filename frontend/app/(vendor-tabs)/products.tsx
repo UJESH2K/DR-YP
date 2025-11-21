@@ -23,6 +23,15 @@ import { apiCall } from '../../src/lib/api';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 // --- Add Product Form Component ---
+const Checkbox = ({ label, value, onValueChange }) => (
+  <Pressable style={formStyles.checkboxContainer} onPress={() => onValueChange(!value)}>
+    <View style={[formStyles.checkbox, value && formStyles.checkboxChecked]}>
+      {value && <Ionicons name="checkmark" size={16} color="white" />}
+    </View>
+    <Text>{label}</Text>
+  </Pressable>
+);
+
 const AddProductForm = ({ visible, onClose, onProductAdded }) => {
   const [product, setProduct] = useState({
     name: '',
@@ -31,21 +40,17 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
     category: '',
     tags: '',
     basePrice: '',
-    sku: '',
-    stock: '0',
   });
-
-  const [images, setImages] = useState([]);
-  const [options, setOptions] = useState([{ name: '', values: '' }]);
-  const [variants, setVariants] = useState([]);
+  
+  const [variants, setVariants] = useState([{ color: '', sizes: '', stock: {}, images: [] }]);
   const [isUploading, setIsUploading] = useState(false);
-  const { token } = useAuthStore(); // Get token from auth store
+  const { token } = useAuthStore();
 
-  useEffect(() => {
-    generateVariants();
-  }, [options]);
+  const addVariant = () => {
+    setVariants(prev => [...prev, { color: '', sizes: '', stock: {}, images: [] }]);
+  };
 
-  const handleImagePick = async () => {
+  const handleVariantImagePick = async (variantIndex) => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
@@ -54,6 +59,7 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
 
     if (!result.canceled) {
       setIsUploading(true);
+      const uploadedUrls = [];
       for (const asset of result.assets) {
         const formData = new FormData();
         const uriParts = asset.uri.split('.');
@@ -71,12 +77,12 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
             body: formData,
             headers: { 
               'Content-Type': 'multipart/form-data',
-              'Authorization': `Bearer ${token}`, // Add Authorization header
+              'Authorization': `Bearer ${token}`,
             },
           });
           const data = await res.json();
           if (data.url) {
-            setImages(prev => [...prev, data.url]);
+            uploadedUrls.push(data.url);
           } else {
             Alert.alert('Upload Failed', data.message || 'Could not upload image.');
           }
@@ -84,71 +90,76 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
           Alert.alert('Upload Error', 'An error occurred while uploading.');
         }
       }
+      const newVariants = [...variants];
+      newVariants[variantIndex].images.push(...uploadedUrls);
+      setVariants(newVariants);
       setIsUploading(false);
     }
-  };
-  
-  const handleOptionChange = (index, field, value) => {
-    const newOptions = [...options];
-    newOptions[index][field] = value;
-    setOptions(newOptions);
-  };
-
-  const addOption = () => setOptions([...options, { name: '', values: '' }]);
-
-  const generateVariants = () => {
-    if (options.length === 0 || options[0].values.trim() === '') {
-      setVariants([]);
-      return;
-    }
-    const allOptions = options.map(opt => opt.values.split(',').map(v => v.trim()).filter(Boolean));
-    const getCombinations = (arrays) => {
-      if (!arrays || arrays.length === 0) return [];
-      let result = [[]];
-      for (const arr of arrays) {
-        if (arr.length === 0) continue;
-        const newResult = [];
-        for (const res of result) {
-          for (const val of arr) {
-            newResult.push([...res, val]);
-          }
-        }
-        result = newResult;
-      }
-      return result;
-    };
-    const combinations = getCombinations(allOptions);
-    const variantKeys = options.map(opt => opt.name).filter(Boolean);
-    const newVariants = combinations.map(combo => {
-      const optionsMap = {};
-      variantKeys.forEach((key, i) => { optionsMap[key] = combo[i]; });
-      return { options: optionsMap, sku: '', stock: '0', price: '' };
-    });
-    setVariants(newVariants);
   };
 
   const handleVariantChange = (index, field, value) => {
     const newVariants = [...variants];
     newVariants[index][field] = value;
+    if (field === 'sizes') {
+      const sizesArray = value.split(',').map(s => s.trim()).filter(Boolean);
+      const newStock = {};
+      sizesArray.forEach(size => {
+        newStock[size] = newVariants[index].stock[size] || '0';
+      });
+      newVariants[index].stock = newStock;
+    }
+    setVariants(newVariants);
+  };
+  
+  const handleStockChange = (variantIndex, size, value) => {
+    const newVariants = [...variants];
+    newVariants[variantIndex].stock[size] = value;
     setVariants(newVariants);
   };
 
   const handleSubmit = async () => {
-    const productData = {
+    if (variants.length === 0 || variants.some(v => !v.color || !v.sizes)) {
+      Alert.alert('Error', 'Please add at least one variant with a color and sizes.');
+      return;
+    }
+
+    const allVariantImages = variants.flatMap(v => v.images);
+
+    let productData = {
       ...product,
       basePrice: parseFloat(product.basePrice),
       tags: product.tags.split(',').map(t => t.trim()),
-      stock: parseInt(product.stock, 10),
-      images,
-      options: options.filter(o => o.name && o.values).map(o => ({...o, values: o.values.split(',').map(v => v.trim())})),
-      variants: variants.map(v => ({
-        ...v,
-        stock: parseInt(v.stock, 10),
-        price: v.price ? parseFloat(v.price) : undefined,
-      })),
+      images: allVariantImages,
+      options: [],
+      variants: [],
     };
     
-    if (productData.options.length === 0) productData.variants = [];
+    if (productData.sku === '') {
+      delete productData.sku;
+    }
+
+    const allColors = variants.map(v => v.color).filter(Boolean);
+    const allSizes = [...new Set(variants.flatMap(v => v.sizes.split(',').map(s => s.trim()).filter(Boolean)))];
+    
+    if (allColors.length > 0) {
+      productData.options.push({ name: 'Color', values: allColors });
+    }
+    if (allSizes.length > 0) {
+      productData.options.push({ name: 'Size', values: allSizes });
+    }
+
+    variants.forEach(variant => {
+      const sizes = variant.sizes.split(',').map(s => s.trim()).filter(Boolean);
+      sizes.forEach(size => {
+        const newVariant = {
+          options: { Color: variant.color, Size: size },
+          stock: parseInt(variant.stock[size] || '0', 10),
+          price: undefined,
+          images: variant.images,
+        };
+        productData.variants.push(newVariant);
+      });
+    });
 
     const result = await apiCall('/api/products', {
       method: 'POST',
@@ -164,7 +175,7 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
   };
 
   return (
-    <Modal visible={visible} animationType="slide">
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={formStyles.container}>
         <ScrollView>
           <Text style={formStyles.title}>Add New Product</Text>
@@ -175,41 +186,30 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
           <TextInput style={formStyles.input} placeholder="Tags (comma-separated)" onChangeText={v => setProduct({...product, tags: v})} />
           <TextInput style={formStyles.input} placeholder="Base Price" onChangeText={v => setProduct({...product, basePrice: v})} keyboardType="numeric" />
 
-          {/* Image Upload */}
-          <Text style={formStyles.subtitle}>Images</Text>
-          <View style={formStyles.imagePreviewContainer}>
-            {images.map((uri, index) => <Image key={index} source={{ uri: `${API_BASE_URL}${uri}` }} style={formStyles.imagePreview} />)}
-          </View>
-          {isUploading ? <ActivityIndicator /> : <Button title="Select Images" onPress={handleImagePick} />}
-
-          {/* Variants Section */}
-          <Text style={formStyles.subtitle}>Product Options</Text>
-          {options.map((option, index) => (
-            <View key={index} style={formStyles.optionContainer}>
-              <TextInput style={formStyles.optionInput} placeholder="Option Name (e.g., Size)" value={option.name} onChangeText={v => handleOptionChange(index, 'name', v)} />
-              <TextInput style={formStyles.optionInput} placeholder="Values (e.g., S,M,L)" value={option.values} onChangeText={v => handleOptionChange(index, 'values', v)} />
-            </View>
-          ))}
-          <Button title="Add Option" onPress={addOption} />
-
-          {variants.length > 0 ? (
-            <>
-              <Text style={formStyles.subtitle}>Variants</Text>
-              {variants.map((variant, index) => (
-                <View key={index} style={formStyles.variantContainer}>
-                  <Text>{Object.values(variant.options).join(' / ')}</Text>
-                  <TextInput style={formStyles.variantInput} placeholder="SKU" onChangeText={v => handleVariantChange(index, 'sku', v)} />
-                  <TextInput style={formStyles.variantInput} placeholder="Stock" onChangeText={v => handleVariantChange(index, 'stock', v)} keyboardType="numeric" />
-                  <TextInput style={formStyles.variantInput} placeholder="Price (optional)" onChangeText={v => handleVariantChange(index, 'price', v)} keyboardType="numeric" />
+          <Text style={formStyles.title}>Product Variants</Text>
+          
+          {variants.map((variant, index) => (
+            <View key={index} style={formStyles.variantGroup}>
+              <Text style={formStyles.subtitle}>Color Variant {index + 1}</Text>
+              <TextInput style={formStyles.input} placeholder="Color Name (e.g., Red)" value={variant.color} onChangeText={v => handleVariantChange(index, 'color', v)} />
+              <TextInput style={formStyles.input} placeholder="Sizes (comma-separated, e.g., S,M,L)" value={variant.sizes} onChangeText={v => handleVariantChange(index, 'sizes', v)} />
+              
+              <Text style={formStyles.stockTitle}>Stock for each size:</Text>
+              {variant.sizes.split(',').map(s => s.trim()).filter(Boolean).map(size => (
+                <View key={size} style={formStyles.stockInputContainer}>
+                  <Text style={formStyles.stockLabel}>{size}:</Text>
+                  <TextInput style={formStyles.stockInput} placeholder="0" value={variant.stock[size] || ''} onChangeText={v => handleStockChange(index, size, v)} keyboardType="numeric" />
                 </View>
               ))}
-            </>
-          ) : (
-            <>
-              <TextInput style={formStyles.input} placeholder="SKU (for simple product)" onChangeText={v => setProduct({...product, sku: v})} />
-              <TextInput style={formStyles.input} placeholder="Stock (for simple product)" onChangeText={v => setProduct({...product, stock: v})} keyboardType="numeric" />
-            </>
-          )}
+
+              <Text style={formStyles.subtitle}>Variant Images</Text>
+              <View style={formStyles.imagePreviewContainer}>
+                {variant.images.map((uri, imgIndex) => <Image key={imgIndex} source={{ uri: `${API_BASE_URL}${uri}` }} style={formStyles.imagePreview} />)}
+              </View>
+              <Button title="Add Variant Images" onPress={() => handleVariantImagePick(index)} />
+            </View>
+          ))}
+          <Button title="Add Another Color" onPress={addVariant} />
 
           <View style={formStyles.buttonContainer}>
             <Button title="Save Product" onPress={handleSubmit} />
@@ -370,4 +370,12 @@ const formStyles = StyleSheet.create({
   buttonContainer: { marginTop: 30, marginBottom: 50, flexDirection: 'row', justifyContent: 'space-around' },
   imagePreviewContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   imagePreview: { width: 80, height: 80, borderRadius: 5, margin: 5 },
+  checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  checkbox: { width: 20, height: 20, borderWidth: 1, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  checkboxChecked: { backgroundColor: '#0275d8', borderColor: '#0275d8' },
+  variantGroup: { borderColor: '#eee', borderWidth: 1, borderRadius: 5, padding: 10, marginVertical: 10 },
+  stockTitle: { fontWeight: '600', marginVertical: 10 },
+  stockInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  stockLabel: { width: 40 },
+  stockInput: { flex: 1, borderWidth: 1, borderColor: '#eee', padding: 8, borderRadius: 5 },
 });

@@ -10,18 +10,21 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
   try {
     const fullUrl = `${API_BASE_URL}${endpoint}`;
     console.log(`🚀 FRONTEND API CALL: ${options.method || 'GET'} ${fullUrl}`);
-    if (options.body) {
-      console.log(`📤 Sending data:`, JSON.parse(options.body as string));
-    }
 
     const token = await AsyncStorage.getItem('user_token');
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
-
+    console.log(`🔑 Auth Token:`, token ? 'Present' : 'Missing');
+    
+    const headers = { ...options.headers };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Don't set Content-Type for FormData, and don't stringify the body
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+      if (options.body) {
+        console.log(`📤 Sending data:`, JSON.parse(options.body as string));
+      }
     }
 
     const response = await fetch(fullUrl, {
@@ -29,12 +32,25 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
       headers,
     });
 
-    const data = await response.json();
+    let data;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.indexOf('application/json') !== -1) {
+      data = await response.json();
+    } else {
+      const textData = await response.text();
+      // For non-JSON, we can't assume a { message: ... } structure
+      // If the request was not ok, we create an error structure
+      if (!response.ok) {
+          console.warn(`❌ API call failed with non-JSON response: ${endpoint}`, response.status, textData);
+          return { message: textData || 'An unknown error occurred on the server.' };
+      }
+      // If the request was ok but not JSON, we return it as content
+      data = { content: textData };
+    }
     
     if (!response.ok) {
       console.warn(`❌ API call failed: ${endpoint}`, response.status, data);
-      // Return the whole data object so the caller can get the message
-      return data;
+      return data; // Return error data from server
     }
 
     console.log(`✅ API success: ${endpoint}`, data);
@@ -42,8 +58,7 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
   } catch (error) {
     console.error(`❌ API error: ${endpoint}`, error);
     console.error(`❌ Full URL was: ${API_BASE_URL}${endpoint}`);
-    // It's better to return null or throw, so the caller knows it failed catastrophically
-    return null;
+    return { message: error.message || 'An unexpected error occurred.' };
   }
 }
 
