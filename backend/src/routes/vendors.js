@@ -81,6 +81,46 @@ router.get('/me/products', protect, async (req, res, next) => {
   }
 });
 
+// @route   GET /api/vendors/me
+// @desc    Get the logged-in vendor's profile
+// @access  Private (Vendor only)
+router.get('/me', protect, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'vendor') {
+      return res.status(403).json({ message: 'Forbidden: Only vendors can access this route' });
+    }
+    const vendor = await Vendor.findOne({ owner: req.user._id });
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor profile not found for this user' });
+    }
+    res.json(vendor);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @route   PUT /api/vendors/me
+// @desc    Update the logged-in vendor's profile
+// @access  Private (Vendor only)
+router.put('/me', protect, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'vendor') {
+      return res.status(403).json({ message: 'Forbidden: Only vendors can access this route' });
+    }
+    const vendor = await Vendor.findOneAndUpdate(
+      { owner: req.user._id },
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor profile not found for this user' });
+    }
+    res.json(vendor);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/vendors/:id
 router.get('/:id', async (req, res, next) => {
   try {

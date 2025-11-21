@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCartStore } from '../src/state/cart';
 import { useAuthStore } from '../src/state/auth';
+import { apiCall } from '../src/lib/api';
 
 type CheckoutFlow = 'affiliate' | 'aggregator' | 'marketplace';
 
@@ -40,6 +41,7 @@ export default function CheckoutScreen() {
     country: 'US',
   });
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'paypal' | 'apple_pay'>('card');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -53,25 +55,49 @@ export default function CheckoutScreen() {
   const tax = subtotal * 0.08;
   const total = subtotal + shipping + tax;
 
-  const handleCompleteCheckout = () => {
-    if (!shippingAddress.name || !shippingAddress.street) {
-      Alert.alert('Error', 'Please fill in all required shipping information');
+  const handleCompleteCheckout = async () => {
+    if (!shippingAddress.name || !shippingAddress.street || !shippingAddress.city) {
+      Alert.alert('Error', 'Please fill in all required shipping information.');
       return;
     }
+    if (!isAuthenticated) {
+        Alert.alert('Error', 'You must be logged in to place an order.');
+        return;
+    }
 
-    Alert.alert(
-      'Order Confirmation',
-      `Order placed successfully!\n\nFlow: ${checkoutFlow.toUpperCase()}\nTotal: ${formatPrice(total)}\n\nItems will be processed according to the ${checkoutFlow} model.`,
-      [
-        { 
-          text: 'OK', 
-          onPress: () => {
-            clearCart();
-            router.replace('/(tabs)/home');
-          }
+    setIsProcessing(true);
+
+    try {
+        const orderPayload = {
+            items: items,
+            shippingAddress: shippingAddress,
+            totalAmount: total,
+        };
+        
+        const result = await apiCall('/api/orders', {
+            method: 'POST',
+            body: JSON.stringify(orderPayload),
+        });
+
+        if (result && result._id) {
+            Alert.alert(
+                'Order Confirmed!',
+                `Your order #${result.orderNumber} has been placed successfully.`,
+                [{ text: 'OK', onPress: () => {
+                    clearCart();
+                    router.replace('/(tabs)/home');
+                }}]
+            );
+        } else {
+            throw new Error(result?.message || 'Failed to place order.');
         }
-      ]
-    );
+
+    } catch (error) {
+        console.error('Failed to place order:', error);
+        Alert.alert('Order Failed', 'There was an issue placing your order. Please try again.');
+    } finally {
+        setIsProcessing(false);
+    }
   };
 
   const renderCheckoutFlowSelector = () => (

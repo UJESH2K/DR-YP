@@ -1,74 +1,82 @@
 const express = require('express');
 const Like = require('../models/Like');
 const Product = require('../models/Product');
-const { mapProductId, isValidProductId } = require('../utils/productMapping');
+const { protect } = require('../middleware/auth'); // Ensure protect is imported for auth
+const mongoose = require('mongoose');
 const router = express.Router();
 
-// GET /api/likes
-router.get('/', async (req, res, next) => {
+// @route   GET /api/likes
+// @desc    Get all products liked by the current user
+// @access  Private
+router.get('/', protect, async (req, res, next) => {
   try {
-    const userId = req.user?._id || req.query.userId; // Placeholder
-    const likes = await Like.find({ user: userId }).populate('product');
+    const likes = await Like.find({ user: req.user._id }).populate('product');
     res.json(likes.map(l => l.product));
-  } catch (error) { next(error); }
+  } catch (error) { 
+    next(error); 
+  }
 });
 
-// POST /api/likes/:productId
-router.post('/:productId', async (req, res, next) => {
+// @route   POST /api/likes/:productId
+// @desc    Like a product
+// @access  Private
+router.post('/:productId', protect, async (req, res, next) => {
   try {
-    const userId = req.user?._id || req.body.userId || 'anonymous_user';
-    const frontendProductId = req.params.productId;
-    
-    // Map frontend product ID to MongoDB ObjectId
-    if (!isValidProductId(frontendProductId)) {
-      return res.status(400).json({ message: `Invalid product ID: ${frontendProductId}` });
+    const { productId } = req.params;
+    const { _id: userId } = req.user;
+
+    // Validate the product ID
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: `Invalid product ID: ${productId}` });
     }
+
+    // Check if the product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Check if the like already exists
+    const existingLike = await Like.findOne({ user: userId, product: productId });
+    if (existingLike) {
+      return res.status(200).json({ success: true, message: 'Product already liked.' });
+    }
+
+    // Create the like and update the product's like count
+    await Like.create({ user: userId, product: productId });
+    await Product.findByIdAndUpdate(productId, { $inc: { likes: 1 } });
     
-    const mongoProductId = mapProductId(frontendProductId);
-    
-    // Create or update like
-    await Like.updateOne(
-      { user: userId, product: mongoProductId }, 
-      { user: userId, product: mongoProductId }, 
-      { upsert: true }
-    );
-    
-    console.log(`✅ User ${userId} liked product ${frontendProductId} (${mongoProductId})`);
-    res.json({ 
-      success: true, 
-      message: `Successfully liked ${frontendProductId}`,
-      productId: frontendProductId,
-      mongoId: mongoProductId
-    });
-  } catch (error) { next(error); }
+    res.status(201).json({ success: true, message: `Successfully liked ${productId}` });
+  } catch (error) { 
+    next(error); 
+  }
 });
 
-// DELETE /api/likes/:productId
-router.delete('/:productId', async (req, res, next) => {
+// @route   DELETE /api/likes/:productId
+// @desc    Unlike a product
+// @access  Private
+router.delete('/:productId', protect, async (req, res, next) => {
   try {
-    const userId = req.user?._id || req.body.userId || 'anonymous_user';
-    const frontendProductId = req.params.productId;
-    
-    // Map frontend product ID to MongoDB ObjectId
-    if (!isValidProductId(frontendProductId)) {
-      return res.status(400).json({ message: `Invalid product ID: ${frontendProductId}` });
+    const { productId } = req.params;
+    const { _id: userId } = req.user;
+
+    // Validate the product ID
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: `Invalid product ID: ${productId}` });
+    }
+
+    // Find and delete the like
+    const like = await Like.findOneAndDelete({ user: userId, product: productId });
+
+    // If a like was deleted, decrement the product's like count
+    if (like) {
+      await Product.findByIdAndUpdate(productId, { $inc: { likes: -1 } });
     }
     
-    const mongoProductId = mapProductId(frontendProductId);
-    
-    // Remove like
-    await Like.deleteOne({ user: userId, product: mongoProductId });
-    
-    console.log(`❌ User ${userId} unliked product ${frontendProductId} (${mongoProductId})`);
-    res.json({ 
-      success: true, 
-      message: `Successfully unliked ${frontendProductId}`,
-      productId: frontendProductId,
-      mongoId: mongoProductId
-    });
-  } catch (error) { next(error); }
+    res.json({ success: true, message: `Successfully unliked ${productId}` });
+  } catch (error) { 
+    next(error); 
+  }
 });
 
 module.exports = router;
-
-

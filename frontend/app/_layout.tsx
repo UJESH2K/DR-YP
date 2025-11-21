@@ -1,10 +1,11 @@
-import { Stack, router } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
-import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { Stack, router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/state/auth';
+import Toast from '../src/components/Toast';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,10 +31,18 @@ export default function RootLayout() {
   useEffect(() => {
     if (appIsReady) {
       if (isAuthenticated) {
+        const hasCompletedOnboarding =
+          user?.preferences &&
+          (user.preferences.categories.length > 0 ||
+            user.preferences.colors.length > 0 ||
+            user.preferences.brands.length > 0);
+
         if (user?.role === 'vendor') {
           router.replace('/(vendor-tabs)/products');
-        } else {
+        } else if (hasCompletedOnboarding) {
           router.replace('/(tabs)/home');
+        } else {
+          router.replace('/onboarding');
         }
       } else {
         router.replace('/login');
@@ -50,7 +59,8 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }} />
+        <Toast />
       </SafeAreaProvider>
     </GestureHandlerRootView>
-  )
+  );
 }

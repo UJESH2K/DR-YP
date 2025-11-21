@@ -4,6 +4,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  Platform,
   Pressable,
   StatusBar,
   StyleSheet,
@@ -11,290 +12,474 @@ import {
   View,
   PanResponder,
   ScrollView,
+  Alert,
+  findNodeHandle,
+  Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCartStore } from '../../src/state/cart';
-import { useWishlistStore } from '../../src/state/wishlist';
 import { useInteractionStore } from '../../src/state/interactions';
 import { useAuthStore } from '../../src/state/auth';
-import type { Item } from '../../src/data/items';
-import { ITEMS } from '../../src/data/items';
-import { getInitialItems, initRecommender, onItemViewed, rankItems, updateModel } from '../../src/lib/recommender';
-import { sendInteraction } from '../../src/lib/api';
+import type { Item } from '../../src/types';
+import { initRecommender, rankItems, updateModel } from '../../src/lib/recommender';
+import { apiCall, sendInteraction } from '../../src/lib/api';
+import { mapProductsToItems } from '../../src/utils/productMapping';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.4;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 export default function HomeScreen() {
   const addToCart = useCartStore((s) => s.addToCart);
-  const addToWishlist = useWishlistStore((s) => s.addToWishlist);
+  const cartItems = useCartStore((s) => s.items);
   const pushInteraction = useInteractionStore((s) => s.pushInteraction);
-  const { user, loadUser } = useAuthStore();
+  const { user, loadUser, updateUser } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   const [items, setItems] = useState<Item[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [loading, setLoading] = useState(true);
+
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, any>>({});
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  
+  const [wishlistItems, setWishlistItems] = useState<Set<string>>(new Set());
+  const [recentlyAddedToCart, setRecentlyAddedToCart] = useState<Set<string>>(new Set());
+
+
 
   const position = useRef(new Animated.ValueXY()).current;
   const detailsPosition = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  
+  const imageScrollViewRef = useRef<ScrollView>(null);
+  const expandedImageScrollViewRef = useRef<ScrollView>(null);
+  const detailsScrollViewRef = useRef<ScrollView>(null);
 
-  const rotate = position.x.interpolate({
-    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-    outputRange: ['-10deg', '0deg', '10deg'],
-    extrapolate: 'clamp',
-  });
-
-  const likeOpacity = position.x.interpolate({
-    inputRange: [10, SCREEN_WIDTH / 4],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
-  const nopeOpacity = position.x.interpolate({
-    inputRange: [-SCREEN_WIDTH / 4, -10],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
+  // For edge swipe detection
+  const edgeSwipeStartX = useRef(0);
 
   useEffect(() => {
     loadUser();
     initRecommender();
     loadRecommendations();
   }, []);
+  
+  const rotate = position.x.interpolate({ inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], outputRange: ['-10deg', '0deg', '10deg'], extrapolate: 'clamp' });
+  const likeOpacity = position.x.interpolate({ inputRange: [10, SCREEN_WIDTH / 4], outputRange: [0, 1], extrapolate: 'clamp' });
+  const nopeOpacity = position.x.interpolate({ inputRange: [-SCREEN_WIDTH / 4, -10], outputRange: [1, 0], extrapolate: 'clamp' });
 
   const loadRecommendations = async () => {
     setLoading(true);
     try {
-      const initialItems = await getInitialItems().catch(() => ITEMS);
-      setItems(initialItems && initialItems.length ? initialItems : ITEMS);
-    } catch {
-      setItems(ITEMS);
+      const products = await apiCall('/api/products');
+      setItems(Array.isArray(products) ? mapProductsToItems(products) : []);
+    } catch (error) {
+      console.warn('Failed to load products', error);
+      setItems([]);
     } finally {
       setLoading(false);
     }
   };
 
   const showDetails = (item: Item) => {
+    if (!item) return;
+    
     setSelectedItem(item);
-    Animated.timing(detailsPosition, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    setSelectedProduct(null);
+    setSelectedOptions({});
+    setSelectedVariant(null);
+    setActiveImageIndex(0);
+
+    apiCall(`/api/products/${item.id}`)
+      .then(productData => {
+        if (productData) setSelectedProduct(productData);
+      })
+      .catch(err => {
+        console.warn('Failed to fetch product details', err);
+      });
+
+    Animated.spring(position, { toValue: { x: 0, y: -60 }, useNativeDriver: true }).start();
+    Animated.spring(detailsPosition, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
   };
 
   const hideDetails = () => {
-    Animated.timing(detailsPosition, {
-      toValue: SCREEN_HEIGHT,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
+    Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
+    Animated.spring(detailsPosition, { toValue: SCREEN_HEIGHT, useNativeDriver: true, bounciness: 0 }).start(() => {
       setSelectedItem(null);
+      setSelectedProduct(null);
+      setSelectedOptions({});
+      setSelectedVariant(null);
+      setActiveImageIndex(0);
     });
   };
 
+  useEffect(() => {
+    if (selectedProduct?.variants?.length > 0) {
+      const variant = selectedProduct.variants.find((v: any) =>
+        Object.keys(selectedOptions).every(key => v.options && v.options[key] === selectedOptions[key])
+      );
+      setSelectedVariant(variant || null);
+    } else {
+      setSelectedVariant(null);
+    }
+  }, [selectedOptions, selectedProduct]);
+
+  const handleOptionSelect = (name: string, value: any) => setSelectedOptions(prev => ({ ...prev, [name]: value }));
+  
+  const onImageScroll = (event: any) => {
+    const scrollX = event.nativeEvent.contentOffset.x;
+    const newIndex = Math.round(scrollX / SCREEN_WIDTH);
+    setActiveImageIndex(newIndex);
+  };
+
+  const handleAddToWishlist = async (item: Item) => {
+    if (!item) return;
+    try {
+      await apiCall(`/api/wishlist/${item.id}`, { method: 'POST' });
+      
+      setWishlistItems(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(item.id)) {
+          newSet.delete(item.id);
+        } else {
+          newSet.add(item.id);
+        }
+        return newSet;
+      });
+      
+      Alert.alert('Success', `${item.title} ${wishlistItems.has(item.id) ? 'removed from' : 'added to'} your wishlist!`);
+    } catch (error) {
+      console.warn(error);
+      Alert.alert('Error', 'Could not update wishlist.');
+    }
+  };
+
+  const handleAddToCart = (item: Item) => {
+    if (!item) return;
+    const hasVariants = selectedProduct?.options && selectedProduct.options.length > 0;
+    if (hasVariants && !selectedVariant) {
+      Alert.alert('Please select options', 'You must select all available options before adding to cart.');
+      return;
+    }
+    try {
+      addToCart({
+        productId: item.id,
+        title: item.title,
+        brand: item.brand,
+        image: item.image,
+        price: selectedVariant ? selectedVariant.price : item.price,
+        options: hasVariants ? selectedOptions : undefined,
+        quantity: 1,
+      });
+      
+      setRecentlyAddedToCart(prev => new Set(prev).add(item.id));
+      
+      setTimeout(() => {
+        setRecentlyAddedToCart(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(item.id);
+          return newSet;
+        });
+      }, 3000);
+      
+      Alert.alert('Success', `${item.title} added to cart!`);
+    } catch (error) {
+      console.warn(error);
+      Alert.alert('Error', 'Failed to add item to cart.');
+    }
+  };
+
+  const isItemInCart = (itemId: string) => {
+    return cartItems.some(item => item.productId === itemId) || recentlyAddedToCart.has(itemId);
+  };
+
+
+
+  // Card pan responder
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderMove: (_, gesture) => {
-      position.setValue({ x: gesture.dx, y: gesture.dy });
-    },
+    onStartShouldSetPanResponder: () => !isAnimating && !selectedItem,
+    onMoveShouldSetPanResponder: (_, gesture) => !selectedItem && (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5),
+    onPanResponderMove: Animated.event([null, { dx: position.x, dy: position.y }], { useNativeDriver: false }),
     onPanResponderRelease: (_, gesture) => {
-      if (gesture.dx > 120) {
-        onDecision('like');
-      } else if (gesture.dx < -120) {
-        onDecision('dislike');
-      } else if (gesture.dy < -120) {
-        if(currentItem) showDetails(currentItem);
-        Animated.spring(position, {
-          toValue: { x: 0, y: 0 },
-          useNativeDriver: true,
-        }).start();
-      } else {
-        Animated.spring(position, {
-          toValue: { x: 0, y: 0 },
-          useNativeDriver: true,
-        }).start();
-      }
+      if (selectedItem) return;
+      if (gesture.dx > 120) onDecision('like');
+      else if (gesture.dx < -120) onDecision('dislike');
+      else if (gesture.dy < -100) showDetails(items[currentIndex]);
+      else Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
     },
   });
 
-  const detailsPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 10, // Only respond to downward drags
+  // NEW APPROACH: Edge swipe for dismissal
+  const edgeSwipePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: (evt) => {
+      // Only capture gestures that start from the screen edges
+      const startX = evt.nativeEvent.pageX;
+      edgeSwipeStartX.current = startX;
+      
+      // Capture if starting from left edge (50px) or right edge
+      return startX < 50 || startX > SCREEN_WIDTH - 50;
+    },
+    onMoveShouldSetPanResponder: (_, gesture) => {
+      // Only consider vertical movements for edge swipes
+      return Math.abs(gesture.dy) > Math.abs(gesture.dx);
+    },
     onPanResponderMove: (_, gesture) => {
+      // Only move the sheet if it's a downward gesture from edges
       if (gesture.dy > 0) {
         detailsPosition.setValue(gesture.dy);
       }
     },
     onPanResponderRelease: (_, gesture) => {
+      // Dismiss if significant downward swipe from edges
       if (gesture.dy > 100) {
         hideDetails();
       } else {
-        Animated.spring(detailsPosition, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start();
+        Animated.spring(detailsPosition, { toValue: 0, useNativeDriver: true }).start();
       }
     },
   });
 
-  const onDecision = async (decision: 'like' | 'dislike' | 'cart') => {
-    if (isAnimating || currentIndex >= items.length) return;
-
-    setIsAnimating(true);
-    const currentItem = items[currentIndex];
+  const onDecision = (decision: 'like' | 'dislike') => {
+    if (isAnimating) return;
+    const currentItem = items && items.length > 0 ? items[currentIndex] : null;
     if (!currentItem) return;
 
-    const exitDirection = decision === 'like' ? 1 : -1;
-    const exitX = decision === 'cart' ? 0 : exitDirection * SCREEN_WIDTH * 1.5;
-    const exitY = decision === 'cart' ? SCREEN_HEIGHT : 0;
+    setIsAnimating(true);
+    pushInteraction({ itemId: currentItem.id, action: decision, at: Date.now(), tags: currentItem.tags, priceTier: currentItem.priceTier });
+    sendInteraction(decision, currentItem.id, user?._id);
+    updateModel(decision, currentItem);
 
-    try {
-      pushInteraction({ itemId: currentItem.id, action: decision, at: Date.now(), tags: currentItem.tags, priceTier: currentItem.priceTier });
-      if (decision === 'like') addToWishlist(currentItem);
-      else if (decision === 'cart') addToCart({ id: currentItem.id, title: currentItem.title, price: currentItem.price, image: currentItem.image, brand: currentItem.brand, quantity: 1 });
-      
-      sendInteraction(decision, currentItem.id, user?._id);
-      
-      updateModel(decision, currentItem);
-      const rest = items.slice(currentIndex + 1);
-      const reranked = rankItems(rest);
-      setItems([...items.slice(0, currentIndex + 1), ...reranked]);
-
-      await new Promise<void>((resolve) => {
-        Animated.timing(position, {
-          toValue: { x: exitX, y: exitY },
-          duration: 300,
-          useNativeDriver: true,
-        }).start(() => resolve());
-      });
-    } finally {
+    const exitX = decision === 'like' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
+    Animated.timing(position, { toValue: { x: exitX, y: 0 }, duration: 300, useNativeDriver: true }).start(() => {
       position.setValue({ x: 0, y: 0 });
-      setCurrentIndex((prev) => prev + 1);
+      setCurrentIndex(prev => {
+        if (!items || items.length === 0) return 0;
+        return (prev + 1) % items.length;
+      });
       setIsAnimating(false);
+    });
+  };
+
+  const formatPrice = (price: number) => {
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+    } catch (e) {
+      return `$${(price || 0).toFixed(2)}`;
     }
   };
 
-  const formatPrice = (price: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+  const renderImageIndicators = () => {
+    const images = selectedProduct?.images || [];
+    if (images.length <= 1) return null;
 
-  const currentItem = items[currentIndex];
-  const nextItem = items[currentIndex + 1];
+    return (
+      <View style={styles.imageIndicatorsContainer}>
+        {images.map((_: any, index: number) => (
+          <View
+            key={index}
+            style={[
+              styles.imageIndicator,
+              index === activeImageIndex ? styles.imageIndicatorActive : styles.imageIndicatorInactive
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
 
-  useEffect(() => {
-    if (currentItem) onItemViewed(currentItem);
-  }, [currentItem]);
-  
+  const currentItem = items && items.length > 0 ? items[currentIndex] : null;
+  const nextItem = items && items.length > 1 ? items[(currentIndex + 1) % items.length] : null;
+
   const renderDetailsView = () => {
     if (!selectedItem) return null;
 
+    const stockStatus = selectedVariant
+      ? (selectedVariant.stock > 0 ? 'In Stock' : 'Out of Stock')
+      : (selectedProduct?.stock > 0 ? 'In Stock' : 'Out of Stock');
+
+    const bottomPadding = 24 + (insets.bottom || 0) + 80;
+    const isWishlisted = wishlistItems.has(selectedItem.id);
+    const isInCart = isItemInCart(selectedItem.id);
+    const hasMultipleImages = selectedProduct?.images?.length > 1;
+    
     return (
       <Animated.View
         style={[styles.detailsView, { transform: [{ translateY: detailsPosition }] }]}
-        {...detailsPanResponder.panHandlers}
+        accessibilityViewIsModal
       >
+        {/* Edge swipe areas - invisible but capture gestures */}
+        <View style={styles.edgeSwipeAreaLeft} {...edgeSwipePanResponder.panHandlers} />
+        <View style={styles.edgeSwipeAreaRight} {...edgeSwipePanResponder.panHandlers} />
+        
         <View style={styles.detailsHandleBar} />
-        <ScrollView contentContainerStyle={styles.detailsContent}>
-          <Image source={{ uri: selectedItem.image }} style={styles.detailsImage} />
-          <View style={styles.detailsInfoSection}>
-            <Text style={styles.detailsBrand}>{selectedItem.brand}</Text>
-            <Text style={styles.detailsTitle}>{selectedItem.title}</Text>
-            <Text style={styles.detailsPrice}>{formatPrice(selectedItem.price)}</Text>
-            <View style={styles.detailsTagsContainer}>
-              {selectedItem.tags.map((tag) => (
-                <View key={tag} style={styles.detailsTag}>
-                  <Text style={styles.detailsTagText}>{tag}</Text>
+
+        {selectedProduct ? (
+          <ScrollView
+            ref={detailsScrollViewRef}
+            contentContainerStyle={[styles.detailsContent, { paddingBottom: bottomPadding }]}
+            scrollEventThrottle={16}
+            style={{ flex: 1 }}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+          >
+            {/* Image area */}
+            <View style={styles.imageWrapper}>
+              <ScrollView
+                ref={imageScrollViewRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={onImageScroll}
+                scrollEventThrottle={16}
+                style={styles.detailsImageCarousel}
+                nestedScrollEnabled={true}
+                directionalLockEnabled={true}
+              >
+                {selectedProduct?.images?.map((img: string, index: number) => (
+                  <Image
+                      key={img || index}
+                      source={{ uri: `${API_BASE_URL}${img}` }}
+                      style={styles.detailsImage}
+                      resizeMode="cover"
+                      accessible
+                      accessibilityLabel={`Product image ${index + 1}`}
+                    />
+                ))}
+              </ScrollView>
+              
+              {hasMultipleImages && renderImageIndicators()}
+            </View>
+
+            <View style={styles.detailsInfoSection}>
+              <Text style={styles.detailsBrand}>{selectedItem.brand}</Text>
+              <Text style={styles.detailsTitle}>{selectedItem.title}</Text>
+
+              {Array.isArray(selectedProduct?.options) && selectedProduct.options.map((option: any) => (
+                <View key={option.name} style={styles.optionContainer}>
+                  <Text style={styles.optionTitle}>{option.name}</Text>
+                  <View style={styles.optionButtons}>
+                    {option.values.map((value: any) => (
+                      <Pressable
+                        key={String(value)}
+                        style={[styles.optionButton, selectedOptions[option.name] === value && styles.optionButtonSelected]}
+                        onPress={() => handleOptionSelect(option.name, value)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Select ${option.name} ${value}`}
+                      >
+                        <Text style={[styles.optionText, selectedOptions[option.name] === value && styles.optionTextSelected]}>
+                          {value}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
               ))}
+
+              <Text style={styles.detailsPrice}>{formatPrice(selectedVariant?.price || selectedItem.price)}</Text>
+              <Text style={stockStatus === 'In Stock' ? styles.stockIn : styles.stockOut}>{stockStatus}</Text>
+
+              <Text style={styles.detailsDescription}>{selectedItem.description}</Text>
+
+              <View style={{ height: 20 }} />
+
+              <View style={[styles.detailsActions, { paddingBottom: insets.bottom || 12 }]}>
+                <Pressable
+                  style={[styles.detailsButton, isWishlisted && styles.wishlistButtonActive]}
+                  onPress={() => handleAddToWishlist(selectedItem)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                  <Ionicons 
+                    name={isWishlisted ? "heart" : "heart-outline"} 
+                    size={24} 
+                    color={isWishlisted ? "#000" : "#000"} 
+                  />
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.detailsButton, 
+                    { flex: 1 }, 
+                    isInCart ? styles.addedToCartButton : styles.addToCartButton
+                  ]}
+                  onPress={() => handleAddToCart(selectedItem)}
+                  disabled={isInCart}
+                  accessibilityRole="button"
+                  accessibilityLabel={isInCart ? "Added to cart" : "Add to cart"}
+                >
+                  <Text style={isInCart ? styles.addedToCartButtonText : styles.addToCartButtonText}>
+                    {isInCart ? "Added to Cart" : "Add to Cart"}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-            <Text style={styles.detailsDescription}>
-              This is a great product that you will love. It has many features and is of high quality.
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            </Text>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        ) : (
+          <ActivityIndicator size="large" style={{ flex: 1 }} />
+        )}
       </Animated.View>
     );
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (currentIndex >= items.length) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.endContainer}>
-          <Text style={styles.endTitle}>All caught up!</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (loading) return <SafeAreaView style={styles.container}><ActivityIndicator style={styles.centered} size="large" /></SafeAreaView>;
+  if (!items || items.length === 0) return <SafeAreaView style={styles.container}><View style={styles.endContainer}><Text style={styles.endTitle}>No products found.</Text></View></SafeAreaView>;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>DRYP</Text>
-        <Pressable onPress={() => router.push('/(tabs)/search')}>
-          <Ionicons name="search-outline" size={28} color="#000" />
-        </Pressable>
+        <Text style={{ fontSize: 33, fontWeight: '100', color: '#000', letterSpacing: 1.5 }}>DRYP</Text>
+        <View style={styles.headerIcons}>
+          <Pressable onPress={() => router.push('/(tabs)/search')}><Ionicons name="search-outline" size={28} color="#000" /></Pressable>
+          <Pressable onPress={() => router.push('/liked-items')}><Ionicons name="heart-outline" size={28} color="#000" /></Pressable>
+          <Pressable onPress={() => router.push('/notifications')}><Ionicons name="notifications-outline" size={28} color="#000" /></Pressable>
+        </View>
       </View>
 
       <View style={styles.cardStack}>
         {nextItem && (
-          <View style={[styles.card, styles.nextCard]} pointerEvents="none">
+          <Animated.View style={[styles.card, styles.nextCard]} pointerEvents="none">
             <Image source={{ uri: nextItem.image }} style={styles.cardImage} />
             <View style={styles.infoSection}>
               <Text style={styles.cardBrand}>{nextItem.brand}</Text>
-              <Text style={styles.cardTitle}>DRYP</Text>
-            </View>
-          </View>
-        )}
-
-        {currentItem && <Animated.View
-          style={[
-            styles.card,
-            { transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] },
-          ]}
-          {...panResponder.panHandlers}
-        >
-          <Animated.View style={[styles.overlay, styles.likeOverlay, { opacity: likeOpacity }]} />
-          <Animated.View style={[styles.overlay, styles.dislikeOverlay, { opacity: nopeOpacity }]} />
-          
-          <Image source={{ uri: currentItem.image }} style={styles.cardImage} />
-          <View style={styles.infoSection}>
-            <View>
-              <Text style={styles.cardBrand}>{currentItem.brand}</Text>
-              <Text style={styles.cardTitle}>{currentItem.title}</Text>
-              <View style={styles.tagsContainer}>
-                {currentItem.tags.slice(0, 3).map((tag) => (
-                  <View key={tag} style={styles.tag}>
-                    <Text style={styles.tagText}>{tag}</Text>
-                  </View>
+              <Text style={styles.cardTitle}>{nextItem.title}</Text>
+              <View style={[styles.tagsContainer, { opacity: 0.7 }]}>
+                {nextItem.tags?.slice(0, 3).map((tag: string) => (
+                  <View key={tag} style={[styles.tag, { opacity: 0.7 }]}><Text style={styles.tagText}>{tag}</Text></View>
                 ))}
               </View>
+              <Text style={[styles.cardPrice, { opacity: 0.7 }]}>{formatPrice(nextItem.price)}</Text>
             </View>
-            <View style={styles.priceAndCart}>
-              <Text style={styles.cardPrice}>{formatPrice(currentItem.price)}</Text>
-              <Pressable style={styles.addToCartButton} onPress={() => onDecision('cart')}>
-                <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Animated.View>}
-      </View>
+          </Animated.View>
+        )}
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Swipe left to pass, right to like, or up for details.</Text>
+        {currentItem && (
+          <Animated.View
+            style={[ styles.card, { transform: [...position.getTranslateTransform(), { rotate }] } ]}
+            {...panResponder.panHandlers}
+          >
+            <Animated.View style={[styles.overlay, styles.likeOverlay, { opacity: likeOpacity }]} />
+            <Animated.View style={[styles.overlay, styles.dislikeOverlay, { opacity: nopeOpacity }]} />
+            <Image source={{ uri: currentItem.image }} style={styles.cardImage} />
+            <View style={styles.infoSection}>
+              <View>
+                <Text style={styles.cardBrand}>{currentItem.brand}</Text>
+                <Text style={styles.cardTitle}>{currentItem.title}</Text>
+                <View style={styles.tagsContainer}>
+                  {currentItem.tags?.slice(0, 3).map((tag: string) => (<View key={tag} style={styles.tag}><Text style={styles.tagText}>{tag}</Text></View>))}
+                </View>
+                <Text style={styles.cardPrice}>{formatPrice(currentItem.price)}</Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
       </View>
       
       {renderDetailsView()}
@@ -303,215 +488,169 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    zIndex: 10,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  cardStack: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  card: {
-    width: SCREEN_WIDTH * 0.9,
-    height: SCREEN_HEIGHT * 0.7,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e0e0e0', zIndex: 10 },
+  headerIcons: { flexDirection: 'row', gap: 16, },
+  cardStack: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  card: { width: SCREEN_WIDTH * 0.9, height: SCREEN_HEIGHT * 0.7, borderRadius: 20, backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 3, position: 'absolute' },
+  nextCard: { opacity: 0.8 },
+  cardImage: { width: '100%', height: '70%', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  infoSection: { padding: 20, paddingBottom: 30 },
+  cardBrand: { fontSize: 14, color: '#888', marginBottom: 4 },
+  cardTitle: { fontSize: 20, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 8 },
+  cardPrice: { fontSize: 18, fontWeight: 'bold', color: '#1a1a1a', marginTop: 4, marginBottom: 8 },
+  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4, marginBottom: 4 },
+  tag: { backgroundColor: '#e0e0e0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  tagText: { fontSize: 11, color: '#333' },
+  endContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  endTitle: { fontSize: 20, fontWeight: '700' },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20 },
+  likeOverlay: { backgroundColor: 'rgba(0, 255, 0, 0.2)' },
+  dislikeOverlay: { backgroundColor: 'rgba(255, 0, 0, 0.2)' },
+
+  // DETAILS sheet
+  detailsView: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '95%', backgroundColor: '#ffffff', borderTopLeftRadius: 20, borderTopRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 20, paddingTop: 20 },
+  detailsHandleBar: { width: 40, height: 5, borderRadius: 2.5, backgroundColor: '#ccc', alignSelf: 'center', marginTop: 10, marginBottom: 10 },
+  detailsImageCarousel: { height: IMAGE_HEIGHT },
+  imageWrapper: { width: '100%', height: IMAGE_HEIGHT, overflow: 'hidden' },
+  detailsContent: { paddingBottom: 40 },
+  detailsImage: { width: SCREEN_WIDTH, height: IMAGE_HEIGHT },
+  detailsInfoSection: { padding: 20 },
+  detailsBrand: { fontSize: 16, color: '#888', marginBottom: 5 },
+  detailsTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+  detailsPrice: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 15 },
+  optionContainer: { marginBottom: 15 },
+  optionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 10 },
+  optionButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  optionButton: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ccc', marginRight: 8, marginBottom: 8 },
+  optionButtonSelected: { backgroundColor: '#1a1a1a', borderColor: '#1a1a1a' },
+  optionText: { color: '#1a1a1a' },
+  optionTextSelected: { color: '#fff' },
+  stockIn: { fontSize: 16, color: '#10B981', fontWeight: '600', marginBottom: 15 },
+  stockOut: { fontSize: 16, color: '#EF4444', fontWeight: '600', marginBottom: 15 },
+  detailsDescription: { fontSize: 16, lineHeight: 24, color: '#666' },
+  detailsActions: { flexDirection: 'row', marginTop: 20, gap: 10, paddingBottom: 40 },
+  detailsButton: { padding: 15, borderRadius: 15, borderWidth: 1, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
+  detailsButtonText: { fontSize: 16, fontWeight: 'bold' },
+  
+  // Edge swipe areas
+  edgeSwipeAreaLeft: {
     position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 50,
+    zIndex: 100,
   },
-  nextCard: {
-    transform: [{ scale: 0.95 }],
-    opacity: 0.8,
+  edgeSwipeAreaRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 50,
+    zIndex: 100,
   },
-  cardImage: {
-    width: '100%',
-    height: '65%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  infoSection: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
-  cardBrand: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 4,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  tagsContainer: {
+  
+  // New styles for button states
+  wishlistButtonActive: { backgroundColor: '#f0f0f0' },
+  addToCartButton: { backgroundColor: '#000' },
+  addedToCartButton: { backgroundColor: '#10B981' },
+  addToCartButtonText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+  addedToCartButtonText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+  
+  // Image indicator styles
+  imageIndicatorsContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 6,
   },
-  tag: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
+  imageIndicator: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
-  tagText: {
-    fontSize: 12,
-    color: '#333',
+  imageIndicatorActive: {
+    width: 24,
+    backgroundColor: '#000',
   },
-  priceAndCart: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
+  imageIndicatorInactive: {
+    width: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
-  cardPrice: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  addToCartButton: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  addToCartButtonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  footer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#888',
-  },
-  loadingContainer: {
+
+  // Expanded image modal styles
+  expandedImageContainer: {
     flex: 1,
+    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  endContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  endTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  overlay: {
+  expandedCloseButton: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  likeOverlay: {
-    backgroundColor: 'rgba(0, 255, 0, 0.2)',
-  },
-  dislikeOverlay: {
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-  },
-  // Styles for Details Modal
-  detailsView: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '95%',
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 20,
-  },
-  detailsHandleBar: {
-    width: 40,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#ccc',
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 10,
-  },
-  detailsContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  detailsImage: {
-    width: '100%',
-    height: 300,
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  detailsInfoSection: {
+  expandedImageScrollView: {
     flex: 1,
+    width: SCREEN_WIDTH,
   },
-  detailsBrand: {
-    fontSize: 16,
-    color: '#888',
-    marginBottom: 5,
+  expandedImageWrapper: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  detailsTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  expandedImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
   },
-  detailsPrice: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 15,
-  },
-  detailsTagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-  detailsTag: {
-    backgroundColor: '#f0f0f0',
+  imageCounter: {
+    position: 'absolute',
+    left: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 15,
+    borderRadius: 12,
   },
-  detailsTagText: {
+  imageCounterText: {
+    color: '#fff',
     fontSize: 14,
-    color: '#333',
+    fontWeight: '600',
   },
-  detailsDescription: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#666',
+  expandedImageIndicatorsContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  expandedImageIndicator: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  expandedImageIndicatorActive: {
+    width: 24,
+    backgroundColor: '#fff',
+  },
+  expandedImageIndicatorInactive: {
+    width: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
 });

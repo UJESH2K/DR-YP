@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiCall } from '../lib/api';
-import { Alert } from 'react-native';
+import { useToastStore } from './toast';
+import { useWishlistStore } from './wishlist'; // Import the wishlist store
 
 // This should match the User model from the backend
 export interface User {
@@ -49,14 +50,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user, token, isAuthenticated: true });
         await AsyncStorage.setItem('user_token', token);
         await AsyncStorage.setItem('user_data', JSON.stringify(user));
+        // Clear wishlist for a new user
+        useWishlistStore.getState().setWishlist([]);
+        useToastStore.getState().showToast('Registered successfully!');
         return user;
       } else {
-        Alert.alert('Registration Failed', response?.message || 'An unknown error occurred.');
+        useToastStore.getState().showToast(response?.message || 'An unknown error occurred.', 'error');
         return null;
       }
     } catch (error) {
       console.error('Error registering:', error);
-      Alert.alert('Registration Error', 'An unexpected error occurred. Please try again.');
+      useToastStore.getState().showToast('An unexpected error occurred. Please try again.', 'error');
       return null;
     } finally {
       set({ isLoading: false });
@@ -76,26 +80,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user, token, isAuthenticated: true });
         await AsyncStorage.setItem('user_token', token);
         await AsyncStorage.setItem('user_data', JSON.stringify(user));
+
+        // Fetch and set wishlist
+        const wishlistItems = await apiCall('/api/wishlist');
+        if (Array.isArray(wishlistItems)) {
+          const validWishlistProducts = wishlistItems
+            .filter(item => item && item.product) // Filter out null/undefined items and items with no product
+            .map(item => item.product);
+          useWishlistStore.getState().setWishlist(validWishlistProducts);
+        }
+        
+        useToastStore.getState().showToast('Logged in successfully!');
         return user;
       } else {
-        Alert.alert('Login Failed', response?.message || 'Invalid credentials.');
+        useToastStore.getState().showToast(response?.message || 'Invalid credentials.', 'error');
         return null;
       }
     } catch (error) {
       console.error('Error logging in:', error);
-      Alert.alert('Login Error', 'An unexpected error occurred. Please try again.');
+      useToastStore.getState().showToast('An unexpected error occurred. Please try again.', 'error');
       return null;
     } finally {
       set({ isLoading: false });
     }
   },
-
   logout: async () => {
     set({ isLoading: true });
     try {
       await AsyncStorage.removeItem('user_token');
       await AsyncStorage.removeItem('user_data');
       set({ user: null, token: null, isAuthenticated: false });
+      // Clear wishlist on logout
+      useWishlistStore.getState().setWishlist([]);
     } catch (error) {
       console.error('Error logging out:', error);
     } finally {
@@ -111,6 +127,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (token && userData) {
         const user = JSON.parse(userData);
         set({ user, token, isAuthenticated: true });
+        
+        // Fetch and set wishlist
+        const wishlistItems = await apiCall('/api/wishlist');
+        if (Array.isArray(wishlistItems)) {
+          const validWishlistProducts = wishlistItems
+            .filter(item => item && item.product) // Filter out null/undefined items and items with no product
+            .map(item => item.product);
+          useWishlistStore.getState().setWishlist(validWishlistProducts);
+        }
       }
     } catch (error) {
       console.error('Error loading user:', error);

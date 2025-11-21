@@ -22,7 +22,14 @@ const OrderSchema = new mongoose.Schema({
     enum: ['pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded'],
     default: 'pending'
   },
-  shippingAddress: { type: String, required: true },
+  shippingAddress: {
+    name: { type: String, required: true },
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    zipCode: { type: String, required: true },
+    country: { type: String, required: true },
+  },
   orderNumber: { type: String, unique: true, sparse: true }, // Unique order number, sparse allows nulls
   razorpayOrderId: { type: String },
   razorpayPaymentId: { type: String },

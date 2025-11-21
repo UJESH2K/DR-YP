@@ -1,102 +1,50 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Item } from '../data/items';
+import { apiCall } from '../lib/api';
+import { Product } from '../types'; // Assuming you have a Product type defined
 
-export interface WishlistItem {
-  id: string;
-  title: string;
-  brand: string;
-  price: number;
-  image: string;
-  addedAt: number;
-}
+interface WishlistItem extends Product {}
 
 interface WishlistState {
   items: WishlistItem[];
-  addToWishlist: (item: Item) => void;
-  removeFromWishlist: (itemId: string) => void;
-  isInWishlist: (itemId: string) => boolean;
-  clearWishlist: () => void;
-  loadWishlist: () => Promise<void>;
-  saveWishlist: () => Promise<void>;
+  setWishlist: (items: WishlistItem[]) => void;
+  addToWishlist: (product: Product) => Promise<void>;
+  removeFromWishlist: (productId: string) => Promise<void>;
+  isWishlisted: (productId: string) => boolean;
 }
 
 export const useWishlistStore = create<WishlistState>((set, get) => ({
   items: [],
-
-  addToWishlist: (item: Item) => {
-    const wishlistItem: WishlistItem = {
-      id: item.id,
-      title: item.title,
-      brand: item.brand,
-      price: item.price,
-      image: item.image,
-      addedAt: Date.now(),
-    };
-
-    set((state) => {
-      if (state.items.find((i) => i.id === item.id)) {
-        console.log('Item already in wishlist:', item.title);
-        return state;
-      }
-      
-      const newItems = [...state.items, wishlistItem];
-      console.log('Added to wishlist:', item.title);
-      
-      // Save to AsyncStorage
-      AsyncStorage.setItem('wishlist:items', JSON.stringify(newItems)).catch(error =>
-        console.error('Failed to save wishlist:', error)
-      );
-      
-      return { items: newItems };
-    });
-  },
-
-  removeFromWishlist: (itemId: string) => {
-    set((state) => {
-      const newItems = state.items.filter((item) => item.id !== itemId);
-      console.log('Removed from wishlist:', itemId);
-      
-      // Save to AsyncStorage
-      AsyncStorage.setItem('wishlist:items', JSON.stringify(newItems)).catch(error =>
-        console.error('Failed to save wishlist:', error)
-      );
-      
-      return { items: newItems };
-    });
-  },
-
-  isInWishlist: (itemId: string) => {
-    return get().items.some((item) => item.id === itemId);
-  },
-
-  clearWishlist: () => {
-    set({ items: [] });
-    AsyncStorage.removeItem('wishlist:items').catch(error =>
-      console.error('Failed to clear wishlist:', error)
-    );
-  },
-
-  loadWishlist: async () => {
+  setWishlist: (items) => set({ items }),
+  addToWishlist: async (product) => {
     try {
-      const stored = await AsyncStorage.getItem('wishlist:items');
-      if (stored) {
-        const items = JSON.parse(stored) as WishlistItem[];
-        set({ items });
-        console.log('Loaded wishlist:', items.length, 'items');
-      }
+      const existingItem = get().items.find(item => item._id === product._id);
+      if (existingItem) return; // Don't add if it's already there
+
+      set(state => ({ items: [...state.items, product] }));
+      await apiCall('/api/wishlist', {
+        method: 'POST',
+        body: JSON.stringify({ productId: product._id }),
+      });
     } catch (error) {
-      console.error('Failed to load wishlist:', error);
+      console.error('Failed to add item to wishlist:', error);
+      // Revert state on failure
+      set(state => ({ items: state.items.filter(item => item._id !== product._id) }));
     }
   },
-
-  saveWishlist: async () => {
+  removeFromWishlist: async (productId) => {
+    const originalItems = get().items;
     try {
-      const items = get().items;
-      await AsyncStorage.setItem('wishlist:items', JSON.stringify(items));
-      console.log('Wishlist saved successfully');
+      set(state => ({ items: state.items.filter(item => item._id !== productId) }));
+      await apiCall(`/api/wishlist/${productId}`, {
+        method: 'DELETE',
+      });
     } catch (error) {
-      console.error('Failed to save wishlist:', error);
+      console.error('Failed to remove item from wishlist:', error);
+      // Revert state on failure
+      set({ items: originalItems });
     }
+  },
+  isWishlisted: (productId) => {
+    return get().items.some(item => item._id === productId);
   },
 }));

@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  Pressable, 
-  FlatList, 
-  StyleSheet, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  StyleSheet,
   StatusBar,
   Dimensions,
   ActivityIndicator,
-  Alert
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,16 +17,7 @@ import { apiCall } from '../src/lib/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Data copied from style.tsx for onboarding
-const styleOptions = [
-  { id: 'casual', name: 'Casual', icon: '👕' },
-  { id: 'formal', name: 'Formal', icon: '👔' },
-  { id: 'streetwear', name: 'Streetwear', icon: '🧢' },
-  { id: 'vintage', name: 'Vintage', icon: '🕶️' },
-  { id: 'minimalist', name: 'Minimalist', icon: '⚪' },
-  { id: 'bohemian', name: 'Bohemian', icon: '🌸' },
-];
-
+// Color options remain static
 const colorOptions = [
   { id: 'black', name: 'Black', color: '#000000' },
   { id: 'white', name: 'White', color: '#FFFFFF' },
@@ -38,15 +29,6 @@ const colorOptions = [
   { id: 'brown', name: 'Brown', color: '#795548' },
 ];
 
-const brandOptions = [
-  { id: 'nike', name: 'Nike' },
-  { id: 'adidas', name: 'Adidas' },
-  { id: 'zara', name: 'Zara' },
-  { id: 'hm', name: 'H&M' },
-  { id: 'uniqlo', name: 'Uniqlo' },
-  { id: 'gucci', name: 'Gucci' },
-];
-
 type OnboardingStep = 'categories' | 'colors' | 'brands';
 
 export default function Onboarding() {
@@ -54,10 +36,37 @@ export default function Onboarding() {
   const { user, updateUser } = useAuthStore();
   
   const [step, setStep] = useState<OnboardingStep>('categories');
+  
+  // State for dynamic data
+  const [categories, setCategories] = useState<string[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [isFetching, setIsFetching] = useState(true);
+
+  // State for user selections
   const [selectedCategories, setSelectedCategories] = useState<string[]>(user?.preferences?.categories || []);
   const [selectedColors, setSelectedColors] = useState<string[]>(user?.preferences?.colors || []);
   const [selectedBrands, setSelectedBrands] = useState<string[]>(user?.preferences?.brands || []);
+  
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchPreferenceData = async () => {
+      try {
+        setIsFetching(true);
+        const [categoriesData, brandsData] = await Promise.all([
+          apiCall('/api/products/categories'),
+          apiCall('/api/products/brands')
+        ]);
+        if (Array.isArray(categoriesData)) setCategories(categoriesData);
+        if (Array.isArray(brandsData)) setBrands(brandsData);
+      } catch (error) {
+        Alert.alert('Error', 'Could not load preference options.');
+      } finally {
+        setIsFetching(false);
+      }
+    };
+    fetchPreferenceData();
+  }, []);
 
   const toggleSelection = (array: string[], setArray: (arr: string[]) => void, item: string) => {
     if (array.includes(item)) {
@@ -68,19 +77,13 @@ export default function Onboarding() {
   };
 
   const handleNext = () => {
-    if (step === 'categories') {
-      setStep('colors');
-    } else if (step === 'colors') {
-      setStep('brands');
-    }
+    if (step === 'categories') setStep('colors');
+    else if (step === 'colors') setStep('brands');
   };
 
   const handleBack = () => {
-    if (step === 'brands') {
-      setStep('colors');
-    } else if (step === 'colors') {
-      setStep('categories');
-    }
+    if (step === 'brands') setStep('colors');
+    else if (step === 'colors') setStep('categories');
   };
 
   const finishOnboarding = async () => {
@@ -101,47 +104,51 @@ export default function Onboarding() {
 
       if (updatedUser) {
         await updateUser(updatedUser);
-        console.log('User preferences saved to backend and state updated.');
+        router.replace('/(tabs)/home');
       } else {
         throw new Error('Failed to save preferences');
       }
       
-      router.replace('/(tabs)/home');
-      
     } catch (error) {
       console.error('Error saving preferences:', error);
-      setIsLoading(false);
       Alert.alert('Error', 'Could not save your preferences. Please try again.', [{ text: 'OK' }]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const renderContent = () => {
+  const renderPreferenceScreen = () => {
+    if (isFetching) {
+      return <ActivityIndicator size="large" style={styles.centered} />;
+    }
+
+    let content;
     switch (step) {
       case 'categories':
-        return (
+        content = (
           <FlatList
-            key="categories"
-            data={styleOptions}
-            keyExtractor={(item) => item.id}
+            key="categories-list" // Unique key for this FlatList
+            data={categories}
+            keyExtractor={(item) => item}
             numColumns={2}
             contentContainerStyle={styles.grid}
             renderItem={({ item }) => (
               <Pressable
-                style={[styles.optionCard, selectedCategories.includes(item.id) && styles.selectedCard]}
-                onPress={() => toggleSelection(selectedCategories, setSelectedCategories, item.id)}
+                style={[styles.optionCard, selectedCategories.includes(item) && styles.selectedCard]}
+                onPress={() => toggleSelection(selectedCategories, setSelectedCategories, item)}
               >
-                <Text style={styles.optionIcon}>{item.icon}</Text>
-                <Text style={[styles.optionText, selectedCategories.includes(item.id) && styles.selectedText]}>
-                  {item.name}
+                <Text style={[styles.optionText, selectedCategories.includes(item) && styles.selectedText]}>
+                  {item}
                 </Text>
               </Pressable>
             )}
           />
         );
+        break;
       case 'colors':
-        return (
+        content = (
           <FlatList
-            key="colors"
+            key="colors-list" // Unique key for this FlatList
             data={colorOptions}
             keyExtractor={(item) => item.id}
             numColumns={4}
@@ -156,78 +163,88 @@ export default function Onboarding() {
             )}
           />
         );
+        break;
       case 'brands':
-        return (
+        content = (
           <FlatList
-            key="brands"
-            data={brandOptions}
-            keyExtractor={(item) => item.id}
+            key="brands-list" // Unique key for this FlatList
+            data={brands}
+            keyExtractor={(item) => item}
             numColumns={2}
             contentContainerStyle={styles.grid}
             renderItem={({ item }) => (
               <Pressable
-                style={[styles.brandOption, selectedBrands.includes(item.id) && styles.selectedBrand]}
-                onPress={() => toggleSelection(selectedBrands, setSelectedBrands, item.id)}
+                style={[styles.brandOption, selectedBrands.includes(item) && styles.selectedBrand]}
+                onPress={() => toggleSelection(selectedBrands, setSelectedBrands, item)}
               >
-                <Text style={[styles.brandText, selectedBrands.includes(item.id) && styles.selectedBrandText]}>
-                  {item.name}
+                <Text style={[styles.brandText, selectedBrands.includes(item) && styles.selectedBrandText]}>
+                  {item}
                 </Text>
               </Pressable>
             )}
           />
         );
+        break;
       default:
-        return null;
+        content = null;
     }
-  };
 
-  const getTitle = () => {
-    switch (step) {
-      case 'categories': return 'Choose Your Styles';
-      case 'colors': return 'Select Favorite Colors';
-      case 'brands': return 'Pick Preferred Brands';
-    }
+    return (
+      <>
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {step === 'categories' ? 'Choose Your Styles' :
+             step === 'colors' ? 'Select Favorite Colors' :
+             'Pick Preferred Brands'}
+          </Text>
+          <Text style={styles.subtitle}>Help us personalize your experience.</Text>
+        </View>
+
+        {content}
+
+        <View style={styles.footer}>
+          {step !== 'categories' && (
+            <Pressable style={styles.backButton} onPress={handleBack}>
+              <Text style={styles.backButtonText}>Back</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={[styles.nextButton, (isLoading || isFetching) && styles.disabledButton]}
+            onPress={step === 'brands' ? finishOnboarding : handleNext}
+            disabled={isLoading || isFetching}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.nextButtonText}>
+                {step === 'brands' ? 'Finish' : 'Next'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </>
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Text style={styles.title}>{getTitle()}</Text>
-        <Text style={styles.subtitle}>Help us personalize your experience.</Text>
-      </View>
-
-      {renderContent()}
-
-      <View style={styles.footer}>
-        {step !== 'categories' && (
-          <Pressable style={styles.backButton} onPress={handleBack}>
-            <Text style={styles.backButtonText}>Back</Text>
-          </Pressable>
-        )}
-        <Pressable
-          style={[styles.nextButton, isLoading && styles.disabledButton]}
-          onPress={step === 'brands' ? finishOnboarding : handleNext}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.nextButtonText}>
-              {step === 'brands' ? 'Finish' : 'Next'}
-            </Text>
-          )}
-        </Pressable>
-      </View>
+      {renderPreferenceScreen()}
     </SafeAreaView>
   );
 }
 
+// ... (keep all the same styles from the previous code)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     padding: 24,
@@ -256,19 +273,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     borderWidth: 2,
     borderColor: '#f8f9fa',
+    minHeight: 80,
   },
   selectedCard: {
     backgroundColor: '#1a1a1a',
     borderColor: '#1a1a1a',
   },
-  optionIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
   optionText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
+    textAlign: 'center',
   },
   selectedText: {
     color: '#ffffff',

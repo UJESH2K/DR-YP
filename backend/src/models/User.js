@@ -24,6 +24,7 @@ const UserSchema = new mongoose.Schema({
     colors: { type: [String], default: [] },
     brands: { type: [String], default: [] },
   },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

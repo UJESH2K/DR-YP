@@ -59,14 +59,12 @@ export async function sendInteraction(action: 'like' | 'dislike' | 'cart', itemI
   if (action === 'like') {
     return apiCall(`/api/likes/${itemId}`, {
       method: 'POST',
-      body: JSON.stringify(payload),
     });
   }
 
   if (action === 'dislike') {
     return apiCall(`/api/likes/${itemId}`, {
       method: 'DELETE',
-      body: JSON.stringify(payload),
     });
   }
 

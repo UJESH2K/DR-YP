@@ -40,16 +40,7 @@ export default function LoginScreen() {
     }
 
     if (user) {
-      let redirectPath = '/(tabs)/home';
-      if (mode === 'register') {
-        redirectPath = '/onboarding';
-      } else if (user.role === 'vendor') {
-        redirectPath = '/(vendor-tabs)/products';
-      }
-      
-      Alert.alert('Success', `Successfully ${mode === 'login' ? 'logged in' : 'registered'}!`, [
-        { text: 'OK', onPress: () => setTimeout(() => router.replace(redirectPath), 0) }
-      ]);
+      // The redirection is now handled in the root layout
     } else {
       // The auth store will show a more specific error
     }

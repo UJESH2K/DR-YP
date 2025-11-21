@@ -34,6 +34,11 @@ export default function CartScreen() {
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemBrand}>{item.brand}</Text>
                   <Text style={styles.itemTitle}>{item.title}</Text>
+                  {item.options && (
+                    <Text style={styles.itemOptions}>
+                      {Object.keys(item.options).map(key => `${key}: ${item.options[key]}`).join(', ')}
+                    </Text>
+                  )}
                   <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
                 </View>
                 <View style={styles.itemControls}>
@@ -98,6 +103,7 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1 },
   itemBrand: { fontSize: 12, color: '#888', textTransform: 'uppercase' },
   itemTitle: { fontSize: 16, fontWeight: '600', marginVertical: 2 },
+  itemOptions: { fontSize: 12, color: '#888', marginBottom: 4 },
   itemPrice: { fontSize: 14, color: '#1a1a1a' },
   itemControls: { alignItems: 'flex-end' },
   quantityControls: {

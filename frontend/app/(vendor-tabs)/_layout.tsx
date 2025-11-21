@@ -3,22 +3,22 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
-  const getIcon = () => {
+  const getIconName = () => {
     switch (name) {
-      case 'products':
-        return focused ? 'list-circle' : 'list-circle-outline';
-      case 'orders':
-        return focused ? 'receipt' : 'receipt-outline';
       case 'analytics':
         return focused ? 'analytics' : 'analytics-outline';
-      case 'settings':
-        return focused ? 'settings' : 'settings-outline';
+      case 'orders':
+        return focused ? 'receipt' : 'receipt-outline';
+      case 'products':
+        return focused ? 'list-circle' : 'list-circle-outline';
+      case 'store':
+        return focused ? 'storefront' : 'storefront-outline';
       default:
-        return 'ellipse';
+        return 'ellipse-outline';
     }
   };
 
-  return <Ionicons name={getIcon()} size={26} color={focused ? '#1a1a1a' : '#888'} />;
+  return <Ionicons name={getIconName()} size={26} color={focused ? '#1a1a1a' : '#888'} />;
 }
 
 export default function VendorTabLayout() {
@@ -30,10 +30,10 @@ export default function VendorTabLayout() {
       }}
     >
       <Tabs.Screen
-        name="products"
+        name="analytics"
         options={{
-          title: 'Products',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="products" focused={focused} />,
+          title: 'Analytics',
+          tabBarIcon: ({ focused }) => <TabBarIcon name="analytics" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -44,17 +44,17 @@ export default function VendorTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="analytics"
+        name="products"
         options={{
-          title: 'Analytics',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="analytics" focused={focused} />,
+          title: 'Products',
+          tabBarIcon: ({ focused }) => <TabBarIcon name="products" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="store"
         options={{
-          title: 'Settings',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="settings" focused={focused} />,
+          title: 'Store',
+          tabBarIcon: ({ focused }) => <TabBarIcon name="store" focused={focused} />,
         }}
       />
     </Tabs>
