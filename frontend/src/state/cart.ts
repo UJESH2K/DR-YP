@@ -18,6 +18,7 @@ type CartState = {
   addToCart: (item: Omit<CartItem, 'id'> & { id?: string }) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
+  updateCartItem: (oldId: string, newItemData: Omit<CartItem, 'id' | 'quantity'>) => void;
   clearCart: () => void;
   getTotalPrice: () => number;
   getTotalItems: () => number;
@@ -38,6 +39,11 @@ export const useCartStore = create<CartState>()(
       items: [],
       
       addToCart: (item) => {
+        if (typeof item.price !== 'number' || isNaN(item.price)) {
+          console.error("Invalid price in addToCart. Aborting action.");
+          return;
+        }
+
         const cartId = item.id || generateCartId(item.productId, item.options);
         const existingItem = get().items.find(i => i.id === cartId);
 
@@ -69,6 +75,30 @@ export const useCartStore = create<CartState>()(
         ).filter(item => item.quantity > 0), // Remove if quantity is 0
       })),
       
+      updateCartItem: (oldId, newItemData) => {
+        if (typeof newItemData.price !== 'number' || isNaN(newItemData.price)) {
+          console.error("Invalid price in updateCartItem. Aborting update.");
+          return;
+        }
+        
+        const newId = generateCartId(newItemData.productId, newItemData.options);
+        const existingItem = get().items.find(i => i.id === oldId);
+
+        if (!existingItem) return;
+
+        const newCartItem: CartItem = {
+          ...newItemData,
+          id: newId,
+          quantity: existingItem.quantity, // Keep the quantity
+        };
+
+        set(state => ({
+          items: state.items.map(item =>
+            item.id === oldId ? newCartItem : item
+          ),
+        }));
+      },
+
       clearCart: () => set({ items: [] }),
       
       getTotalPrice: () => {

@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCartStore } from '../../src/state/cart';
+import { useCartStore, CartItem } from '../../src/state/cart';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
+import VariantSelectionModal from '../../src/components/VariantSelectionModal';
 
 export default function CartScreen() {
   const { items, removeFromCart, updateQuantity } = useCartStore();
-
+  const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedCartItem, setSelectedCartItem] = useState<CartItem | null>(null);
+  const [isVariantModalVisible, setIsVariantModalVisible] = useState(false);
+  
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   const formatPrice = (price: number) =>
@@ -29,15 +35,33 @@ export default function CartScreen() {
         <>
           <ScrollView style={styles.itemList}>
             {items.map((item) => (
-              <View key={item.id} style={styles.itemCard}>
+              <Pressable 
+                key={item.id} 
+                style={styles.itemCard} 
+                onPress={() => {
+                  setSelectedProductIdForModal(item.productId);
+                  setIsModalVisible(true);
+                }}
+              >
                 <Image source={{ uri: item.image }} style={styles.itemImage} />
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemBrand}>{item.brand}</Text>
                   <Text style={styles.itemTitle}>{item.title}</Text>
                   {item.options && (
-                    <Text style={styles.itemOptions}>
-                      {Object.keys(item.options).map(key => `${key}: ${item.options[key]}`).join(', ')}
-                    </Text>
+                    <View>
+                      <Text style={styles.itemOptions}>
+                        {Object.keys(item.options).map(key => `${key}: ${item.options[key]}`).join(', ')}
+                      </Text>
+                      <Pressable 
+                        style={styles.changeButton}
+                        onPress={() => {
+                          setSelectedCartItem(item);
+                          setIsVariantModalVisible(true);
+                        }}
+                      >
+                        <Text style={styles.changeButtonText}>Change</Text>
+                      </Pressable>
+                    </View>
                   )}
                   <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
                 </View>
@@ -55,7 +79,7 @@ export default function CartScreen() {
                     <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
                   </Pressable>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
           <View style={styles.summaryContainer}>
@@ -69,6 +93,16 @@ export default function CartScreen() {
           </View>
         </>
       )}
+      <ProductDetailModal
+        productId={selectedProductIdForModal}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+      />
+      <VariantSelectionModal
+        cartItem={selectedCartItem}
+        isVisible={isVariantModalVisible}
+        onClose={() => setIsVariantModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -105,6 +139,15 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 16, fontWeight: '600', marginVertical: 2 },
   itemOptions: { fontSize: 12, color: '#888', marginBottom: 4 },
   itemPrice: { fontSize: 14, color: '#1a1a1a' },
+  changeButton: {
+    marginTop: 4,
+    paddingVertical: 2,
+  },
+  changeButtonText: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
   itemControls: { alignItems: 'flex-end' },
   quantityControls: {
     flexDirection: 'row',

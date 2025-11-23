@@ -1,18 +1,16 @@
-import React from 'react';
-import { View, StyleSheet, StatusBar, PanResponder, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, StatusBar, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-
 import { useHomeScreenData } from '../../src/hooks/useHomeScreenData';
 import { useSwipeAnimations } from '../../src/hooks/useSwipeAnimations';
-import { useDetailsSheet } from '../../src/hooks/useDetailsSheet';
-
 import { Header } from '../../src/components/home/Header';
 import { Filters } from '../../src/components/home/Filters';
 import { LoadingState } from '../../src/components/home/LoadingState';
 import { EmptyState } from '../../src/components/home/EmptyState';
 import { Card } from '../../src/components/home/Card';
-import { DetailsView } from '../../src/components/home/DetailsView';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
+import { Item } from '../../src/types';
 
 export default function HomeScreen() {
   const {
@@ -24,16 +22,22 @@ export default function HomeScreen() {
     clearFilters,
   } = useHomeScreenData();
   
-  const {
-    showDetails,
-    hideDetails,
-    ...detailsSheetProps
-  } = useDetailsSheet({
-    onShow: () => swipeAnimations.showDetailsAnimation(),
-    onHide: () => swipeAnimations.hideDetailsAnimation(),
-  });
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  const showDetailsWithAnimation = (item: Item) => {
+    swipeAnimations.showDetailsAnimation();
+    setSelectedProductId(item.id);
+    setModalVisible(true);
+  };
   
-  const swipeAnimations = useSwipeAnimations(items, showDetails);
+  const hideDetailsWithAnimation = () => {
+    swipeAnimations.hideDetailsAnimation();
+    setModalVisible(false);
+    setSelectedProductId(null);
+  };
+  
+  const swipeAnimations = useSwipeAnimations(items, showDetailsWithAnimation);
 
   if (loading) {
     return <LoadingState />;
@@ -101,8 +105,12 @@ export default function HomeScreen() {
         </Pressable>
       )}
 
-      {detailsSheetProps.selectedItem && (
-        <DetailsView {...detailsSheetProps} selectedOptions={detailsSheetProps.selectedOptions} />
+      {selectedProductId && (
+        <ProductDetailModal
+          productId={selectedProductId}
+          isVisible={isModalVisible}
+          onClose={hideDetailsWithAnimation}
+        />
       )}
     </SafeAreaView>
   );

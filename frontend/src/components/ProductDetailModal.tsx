@@ -17,7 +17,7 @@ import { apiCall, sendInteraction } from '../lib/api';
 import { useCartStore } from '../../src/state/cart';
 import { useWishlistStore } from '../../src/state/wishlist';
 import { useAuthStore } from '../../src/state/auth';
-import type { Product } from '../types';
+import { Product } from '../types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.4;
@@ -122,11 +122,15 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
     setActiveImageIndex(newIndex);
   }, []);
 
-  const formatPrice = useCallback((price: number) => {
+  const formatPrice = useCallback((price: number | undefined | null) => {
+    const numericPrice = Number(price);
+    if (isNaN(numericPrice)) {
+      return '$0.00';
+    }
     try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numericPrice);
     } catch (e) {
-      return `$${(price || 0).toFixed(2)}`;
+      return `$${(numericPrice || 0).toFixed(2)}`;
     }
   }, []);
 
@@ -169,13 +173,19 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
       return;
     }
 
+    const price = selectedVariant?.price ?? product.basePrice;
+    if (typeof price !== 'number' || isNaN(price)) {
+      Alert.alert('Error', 'This item cannot be added to cart due to an invalid price.');
+      return;
+    }
+
     try {
       addToCart({
         productId: product._id,
         title: product.name,
         brand: product.brand,
         image: product.images[0],
-        price: selectedVariant?.price ?? product.basePrice,
+        price: price,
         options: hasVariants ? selectedOptions : undefined,
         quantity: 1,
       });

@@ -9,7 +9,7 @@ const VariantSchema = new mongoose.Schema({
   options: { type: Map, of: String, required: true }, // e.g., { "Color": "Red", "Size": "M" }
   sku: { type: String, required: false, unique: true, sparse: true }, // Stock Keeping Unit
   stock: { type: Number, required: true, min: 0, default: 0 },
-  price: { type: Number, required: false }, // Optional: if different from base price
+  price: { type: Number, required: true }, // Optional: if different from base price
   images: { type: [String], default: [] }, // Optional: if variant has its own images
 }, { _id: false });
 

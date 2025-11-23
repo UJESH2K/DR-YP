@@ -78,7 +78,7 @@ export default function SearchScreen() {
     let endpoint = '/api/products?';
     const params = new URLSearchParams();
 
-    if (searchQuery.length > 2) params.append('search', searchQuery);
+    if (searchQuery) params.append('search', searchQuery);
     if (selectedBrand) params.append('brand', selectedBrand);
     if (selectedCategory) params.append('category', selectedCategory);
     if (selectedColor) params.append('color', selectedColor);
@@ -94,37 +94,8 @@ export default function SearchScreen() {
     finally { setLoading(false); }
   }, [searchQuery, selectedBrand, selectedCategory, selectedColor, minPrice, maxPrice]);
 
-  const debouncedSearch = useCallback(debounce(fetchData, 500), [fetchData]);
-
-  useEffect(() => {
-    if (searchQuery.length > 2 || searchQuery.length === 0) {
-      debouncedSearch();
-    }
-  }, [searchQuery, debouncedSearch]);
-
-  useEffect(() => {
-    fetchData();
-  }, [selectedBrand, fetchData]);
-
-  useEffect(() => {
-    fetchData();
-  }, [selectedCategory, fetchData]);
-  
-  useEffect(() => {
-    fetchData();
-  }, [selectedColor, fetchData]);
-
-  useEffect(() => {
-    fetchData();
-  }, [minPrice, maxPrice, fetchData]);
-
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
-    setSelectedBrand(null);
-    setSelectedCategory(null);
-    setSelectedColor(null);
-    setMinPrice('');
-    setMaxPrice('');
   };
   
   const applyFilters = () => {
@@ -226,9 +197,20 @@ export default function SearchScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       {renderFilterModal()}
       <View style={styles.header}>
-        <TextInput style={styles.searchInput} placeholder="Search products..." value={searchQuery} onChangeText={handleSearchChange} />
+        <View style={styles.searchBarContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search products..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            onSubmitEditing={fetchData} // Trigger search on keyboard submit
+          />
+          <Pressable onPress={fetchData} style={styles.searchIcon}>
+            <Ionicons name="search" size={24} color="#888" />
+          </Pressable>
+        </View>
         <Pressable onPress={() => setFilterModalVisible(true)}>
-            <Ionicons name="filter-outline" size={28} color="#000" style={{marginRight: 10}} />
+            <Ionicons name="filter-outline" size={28} color="#000" style={{marginLeft: 10}} />
         </Pressable>
         <Pressable onPress={() => router.push('/(tabs)/cart')}>
           <Ionicons name="cart-outline" size={31} color="#000" />
@@ -294,7 +276,18 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eaeaea' },
-  searchInput: { flex: 1, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20, paddingHorizontal: 15, fontSize: 16, marginRight: 10 },
+  searchBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 40,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    marginRight: 10,
+  },
+  searchInput: { flex: 1, fontSize: 16, paddingRight: 10 },
+  searchIcon: { paddingLeft: 10 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#000', marginVertical: 15, paddingHorizontal: 20 },
   brandScrollView: { marginBottom: 10 },
   brandButton: { backgroundColor: '#f0f0f0', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginRight: 10, height: 40 },
