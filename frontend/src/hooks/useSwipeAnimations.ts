@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useMemo } from 'react';
+import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { Animated, PanResponder } from 'react-native';
 import { SCREEN_WIDTH } from '../constants/dimensions';
 import { useInteractionStore } from '../state/interactions';
@@ -14,12 +14,22 @@ export function useSwipeAnimations(
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [lastSwipeDirection, setLastSwipeDirection] = useState<'left' | 'right' | null>(null);
   
   const position = useRef(new Animated.ValueXY()).current;
   const nextCardAnimation = useRef(new Animated.Value(0.9)).current;
   
   const { user } = useAuthStore();
   const pushInteraction = useInteractionStore((s) => s.pushInteraction);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    position.setValue({ x: 0, y: 0 });
+    nextCardAnimation.setValue(0.9);
+    setCanUndo(false);
+    setLastSwipeDirection(null);
+  }, [items]);
 
   const rotate = position.x.interpolate({ inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], outputRange: ['-10deg', '0deg', '10deg'], extrapolate: 'clamp' });
   const likeOpacity = position.x.interpolate({ inputRange: [10, SCREEN_WIDTH / 4], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -31,6 +41,8 @@ export function useSwipeAnimations(
     if (!currentItem) return;
 
     setIsAnimating(true);
+    setCanUndo(true);
+    setLastSwipeDirection(decision === 'like' ? 'right' : 'left');
     pushInteraction({ itemId: currentItem.id, action: decision, at: Date.now(), tags: currentItem.tags, priceTier: currentItem.priceTier });
     sendInteraction(decision, currentItem.id, user?._id);
     updateModel(decision, currentItem);
@@ -52,6 +64,25 @@ export function useSwipeAnimations(
       setIsAnimating(false);
     });
   }, [isAnimating, items, currentIndex, pushInteraction, user, nextCardAnimation, position]);
+
+  const undoSwipe = useCallback(() => {
+    if (!canUndo) return;
+
+    setIsAnimating(true);
+    setCanUndo(false);
+    
+    const initialX = lastSwipeDirection === 'right' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
+    position.setValue({ x: initialX, y: 0 });
+
+    setCurrentIndex(prev => prev - 1);
+
+    Animated.spring(position, {
+        toValue: { x: 0, y: 0 },
+        useNativeDriver: false
+    }).start(() => {
+        setIsAnimating(false);
+    });
+  }, [canUndo, lastSwipeDirection]);
 
   const showDetailsAnimation = useCallback(() => {
       setIsDetailsVisible(true);
@@ -145,5 +176,8 @@ export function useSwipeAnimations(
     showDetailsAnimation,
     hideDetailsAnimation,
     isDetailsVisible,
+    undoSwipe,
+    canUndo,
+    lastSwipeDirection,
   };
 }

@@ -20,13 +20,8 @@ import { apiCall } from '../../src/lib/api';
 import { rankItems } from '../../src/lib/recommender';
 import type { Item } from '../../src/types';
 import { mapProductsToItems } from '../../src/utils/productMapping';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
 
-const priceRanges = [
-  { label: 'Under $50', min: 0, max: 50 },
-  { label: '$50 - $100', min: 50, max: 100 },
-  { label: '$100 - $200', min: 100, max: 200 },
-  { label: 'Over $200', min: 200, max: Infinity },
-];
 
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,14 +29,21 @@ export default function SearchScreen() {
   const [trending, setTrending] = useState<Item[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<Item[]>([]);
   
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedPriceRange, setSelectedPriceRange] = useState<any | null>(null);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
+  
+  const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
 
   useEffect(() => {
     fetchInitialData();
@@ -50,10 +52,11 @@ export default function SearchScreen() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [products, fetchedBrands, fetchedCategories] = await Promise.all([
+      const [products, fetchedBrands, fetchedCategories, fetchedColors] = await Promise.all([
         apiCall('/api/products?limit=20'),
         apiCall('/api/products/brands'),
         apiCall('/api/products/categories'),
+        apiCall('/api/products/colors'),
       ]);
 
       if (Array.isArray(products)) {
@@ -63,6 +66,7 @@ export default function SearchScreen() {
       }
       if (Array.isArray(fetchedBrands)) setBrands(fetchedBrands);
       if (Array.isArray(fetchedCategories)) setCategories(fetchedCategories);
+      if (Array.isArray(fetchedColors)) setColors(fetchedColors);
 
     } catch (error) { console.error("Failed to fetch initial data:", error); }
     finally { setLoading(false); }
@@ -77,10 +81,9 @@ export default function SearchScreen() {
     if (searchQuery.length > 2) params.append('search', searchQuery);
     if (selectedBrand) params.append('brand', selectedBrand);
     if (selectedCategory) params.append('category', selectedCategory);
-    if (selectedPriceRange) {
-        if (selectedPriceRange.min) params.append('minPrice', selectedPriceRange.min);
-        if (selectedPriceRange.max !== Infinity) params.append('maxPrice', selectedPriceRange.max);
-    }
+    if (selectedColor) params.append('color', selectedColor);
+    if (minPrice) params.append('minPrice', minPrice);
+    if (maxPrice) params.append('maxPrice', maxPrice);
 
     endpoint += params.toString();
 
@@ -89,7 +92,7 @@ export default function SearchScreen() {
       setResults(Array.isArray(products) ? mapProductsToItems(products) : []);
     } catch (error) { console.error("Failed to fetch data:", error); } 
     finally { setLoading(false); }
-  }, [searchQuery, selectedBrand, selectedCategory, selectedPriceRange]);
+  }, [searchQuery, selectedBrand, selectedCategory, selectedColor, minPrice, maxPrice]);
 
   const debouncedSearch = useCallback(debounce(fetchData, 500), [fetchData]);
 
@@ -106,26 +109,45 @@ export default function SearchScreen() {
   useEffect(() => {
     fetchData();
   }, [selectedCategory, fetchData]);
+  
+  useEffect(() => {
+    fetchData();
+  }, [selectedColor, fetchData]);
 
   useEffect(() => {
     fetchData();
-  }, [selectedPriceRange, fetchData]);
+  }, [minPrice, maxPrice, fetchData]);
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     setSelectedBrand(null);
     setSelectedCategory(null);
-    setSelectedPriceRange(null);
+    setSelectedColor(null);
+    setMinPrice('');
+    setMaxPrice('');
   };
   
   const applyFilters = () => {
     fetchData();
     setFilterModalVisible(false);
   };
+
+  const clearFilters = () => {
+    setSelectedBrand(null);
+    setSelectedCategory(null);
+    setSelectedColor(null);
+    setMinPrice('');
+    setMaxPrice('');
+    fetchData();
+    setFilterModalVisible(false);
+  };
   
   // UI Rendering
   const renderProductCard = ({ item, large = false }: { item: Item, large?: boolean }) => (
-    <Pressable style={large ? styles.largeProductCard : styles.productCard} onPress={() => router.push(`/product/${item.id}`)}>
+    <Pressable style={large ? styles.largeProductCard : styles.productCard} onPress={() => {
+      setSelectedProductIdForModal(item.id);
+      setIsModalVisible(true);
+    }}>
       <Image source={{ uri: item.image }} style={large ? styles.largeProductImage : styles.productImage} />
       <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
       <Text style={styles.productBrand} numberOfLines={1}>{item.brand}</Text>
@@ -136,25 +158,64 @@ export default function SearchScreen() {
   const renderFilterModal = () => (
     <Modal visible={isFilterModalVisible} onRequestClose={() => setFilterModalVisible(false)} transparent={true} animationType="slide">
         <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { height: '80%'}]}>
+              <ScrollView>
                 <Text style={styles.sectionTitle}>Filters</Text>
+
                 <Text style={styles.subSectionTitle}>Price Range</Text>
-                {priceRanges.map(range => (
-                    <Pressable key={range.label} style={[styles.filterButton, selectedPriceRange?.label === range.label && styles.filterButtonSelected]} onPress={() => setSelectedPriceRange(r => r?.label === range.label ? null : range)}>
-                        <Text style={[styles.filterButtonText, selectedPriceRange?.label === range.label && styles.filterButtonTextSelected]}>{range.label}</Text>
-                    </Pressable>
-                ))}
+                <View style={styles.priceRangeContainer}>
+                  <TextInput
+                    style={styles.priceInput}
+                    placeholder="Min Price"
+                    keyboardType="numeric"
+                    value={minPrice}
+                    onChangeText={setMinPrice}
+                  />
+                  <TextInput
+                    style={styles.priceInput}
+                    placeholder="Max Price"
+                    keyboardType="numeric"
+                    value={maxPrice}
+                    onChangeText={setMaxPrice}
+                  />
+                </View>
+
                 <Text style={styles.subSectionTitle}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 120 }}>
+                <View style={styles.filterRow}>
                   {categories.map((category) => (
                     <Pressable key={category} style={[styles.filterButton, selectedCategory === category && styles.filterButtonSelected]} onPress={() => setSelectedCategory(c => c === category ? null : category)}>
                         <Text style={[styles.filterButtonText, selectedCategory === category && styles.filterButtonTextSelected]}>{category}</Text>
                     </Pressable>
                   ))}
-                </ScrollView>
-                <Pressable style={styles.applyButton} onPress={applyFilters}>
-                    <Text style={styles.applyButtonText}>Apply</Text>
-                </Pressable>
+                </View>
+
+                <Text style={styles.subSectionTitle}>Brand</Text>
+                <View style={styles.filterRow}>
+                  {brands.map((brand) => (
+                    <Pressable key={brand} style={[styles.filterButton, selectedBrand === brand && styles.filterButtonSelected]} onPress={() => setSelectedBrand(b => b === brand ? null : brand)}>
+                        <Text style={[styles.filterButtonText, selectedBrand === brand && styles.filterButtonTextSelected]}>{brand}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={styles.subSectionTitle}>Color</Text>
+                <View style={styles.filterRow}>
+                  {colors.map((color) => (
+                    <Pressable key={color} style={[styles.filterButton, selectedColor === color && styles.filterButtonSelected]} onPress={() => setSelectedColor(c => c === color ? null : color)}>
+                        <Text style={[styles.filterButtonText, selectedColor === color && styles.filterButtonTextSelected]}>{color}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                
+                <View style={styles.modalButtons}>
+                    <Pressable style={[styles.modalButton, styles.clearButton]} onPress={clearFilters}>
+                        <Text style={styles.clearButtonText}>Clear</Text>
+                    </Pressable>
+                    <Pressable style={[styles.modalButton, styles.applyButton]} onPress={applyFilters}>
+                        <Text style={styles.applyButtonText}>Apply</Text>
+                    </Pressable>
+                </View>
+              </ScrollView>
             </View>
         </View>
     </Modal>
@@ -173,36 +234,14 @@ export default function SearchScreen() {
           <Ionicons name="cart-outline" size={31} color="#000" />
         </Pressable>
       </View>
-
       <FlatList
         data={[
-          { type: 'brands', data: brands },
           { type: 'search-results', data: results, title: 'Search Results' },
           { type: 'trending', data: trending, title: 'Trending Now' },
           { type: 'recommendations', data: recommendations, title: 'You Might Also Like' },
         ]}
         keyExtractor={(item) => item.type}
         renderItem={({ item }) => {
-          if (item.type === 'brands') {
-            return (
-              <View style={{paddingHorizontal: 20}}>
-                <Text style={styles.sectionTitle}>Shop by Brand</Text>
-                <FlatList
-                  horizontal
-                  data={brands}
-                  renderItem={({item: brand}) => (
-                    <Pressable key={brand} style={[styles.brandButton, selectedBrand === brand && styles.brandButtonSelected]} onPress={() => { setSelectedBrand(b => b === brand ? null : brand); setSearchQuery(''); }}>
-                      <Text style={[styles.brandButtonText, selectedBrand === brand && styles.brandButtonTextSelected]}>{brand}</Text>
-                    </Pressable>
-                  )}
-                  keyExtractor={(brand) => brand}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.brandScrollView}
-                />
-              </View>
-            )
-          }
-
           if (loading && (item.type === 'search-results')) {
             return <ActivityIndicator size="large" style={{marginTop: 50}} />;
           }
@@ -243,6 +282,11 @@ export default function SearchScreen() {
         }}
         ListFooterComponent={<View style={{height: 40}} />}
       />
+      <ProductDetailModal
+        productId={selectedProductIdForModal}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -272,6 +316,13 @@ const styles = StyleSheet.create({
   filterButtonSelected: { backgroundColor: '#000' },
   filterButtonText: { color: '#000', fontWeight: '600' },
   filterButtonTextSelected: { color: '#fff' },
-  applyButton: { backgroundColor: '#000', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20 },
+  priceRangeContainer: { flexDirection: 'row', justifyContent: 'space-between' },
+  priceInput: { flex: 1, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20, paddingHorizontal: 15, fontSize: 16, marginRight: 10 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
+  modalButton: { flex: 1, padding: 15, borderRadius: 10, alignItems: 'center' },
+  clearButton: { backgroundColor: '#f0f0f0', marginRight: 10 },
+  clearButtonText: { color: '#000', fontWeight: 'bold' },
+  applyButton: { backgroundColor: '#000' },
   applyButtonText: { color: '#fff', fontWeight: 'bold' },
 });

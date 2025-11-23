@@ -6,6 +6,7 @@ import React, { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/state/auth';
 import Toast from '../src/components/Toast';
+import { BackHandler } from 'react-native'; // Import BackHandler
 
 SplashScreen.preventAutoHideAsync();
 
@@ -49,6 +50,25 @@ export default function RootLayout() {
       }
     }
   }, [isAuthenticated, user, appIsReady]);
+
+  // Add BackHandler useEffect
+  useEffect(() => {
+    const backAction = () => {
+      if (router.canGoBack()) {
+        router.back();
+        return true; // Prevent default behavior
+      }
+      return false; // Allow default behavior (exit app)
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, []); // Empty dependency array means this runs once on mount and unmount
+
 
   if (!appIsReady) {
     return null; // Or a loading indicator

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, StatusBar, PanResponder } from 'react-native';
+import { View, StyleSheet, StatusBar, PanResponder, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useHomeScreenData } from '../../src/hooks/useHomeScreenData';
 import { useSwipeAnimations } from '../../src/hooks/useSwipeAnimations';
@@ -84,6 +85,22 @@ export default function HomeScreen() {
         )}
       </View>
       
+      {swipeAnimations.canUndo && (
+        <Pressable 
+          style={[
+            styles.undoButton, 
+            swipeAnimations.lastSwipeDirection === 'left' ? { left: 30 } : { right: 30 }
+          ]} 
+          onPress={swipeAnimations.undoSwipe}
+        >
+          <Ionicons 
+            name={swipeAnimations.lastSwipeDirection === 'left' ? "arrow-redo" : "arrow-undo"} 
+            size={40} 
+            color="black" 
+          />
+        </Pressable>
+      )}
+
       {detailsSheetProps.selectedItem && (
         <DetailsView {...detailsSheetProps} selectedOptions={detailsSheetProps.selectedOptions} />
       )}
@@ -94,4 +111,13 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   cardStack: { flex: 1, alignItems: 'center', paddingTop: 20 },
+  undoButton: {
+    position: 'absolute',
+    bottom: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
