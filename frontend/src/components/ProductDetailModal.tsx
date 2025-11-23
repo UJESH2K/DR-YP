@@ -10,6 +10,7 @@ import {
   Alert,
   Dimensions,
   Animated,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,6 +61,22 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
     }
   }, [productId, wishlistItems, isWishlisted]);
 
+  useEffect(() => {
+    if (isVisible) {
+      const backAction = () => {
+        onClose();
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        backAction
+      );
+
+      return () => backHandler.remove();
+    }
+  }, [isVisible, onClose]);
+  
   useEffect(() => {
     if (isVisible && productId) {
       setLoading(true);

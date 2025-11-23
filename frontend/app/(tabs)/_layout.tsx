@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useFocusEffect, usePathname } from 'expo-router';
 import React from 'react';
 import { BackHandler } from 'react-native';
 import { useNavigationStore } from '../../src/state/navigation';
@@ -7,8 +7,15 @@ import { Ionicons } from '@expo/vector-icons';
 import CartBadge from '../../src/components/CartBadge';
 
 export default function TabLayout() {
-  const { goBack } = useNavigationStore();
+  const { push, goBack } = useNavigationStore();
   const router = useCustomRouter();
+  const pathname = usePathname();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      push(pathname);
+    }, [pathname, push])
+  );
 
   React.useEffect(() => {
     const backAction = () => {

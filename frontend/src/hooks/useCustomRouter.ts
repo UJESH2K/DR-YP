@@ -3,7 +3,7 @@ import { useNavigationStore } from '../state/navigation';
 
 export function useCustomRouter() {
   const router = useRouter();
-  const { push: pushToHistory } = useNavigationStore();
+  const { push: pushToHistory, goBack: goBackFromHistory } = useNavigationStore();
 
   const push = (path: string) => {
     pushToHistory(path);
@@ -15,9 +15,19 @@ export function useCustomRouter() {
     router.replace(path);
   };
 
+  const goBack = () => {
+    const backPath = goBackFromHistory();
+    if (backPath) {
+      router.replace(backPath);
+    } else {
+      router.back();
+    }
+  };
+
   return {
     ...router,
     push,
     replace,
+    goBack,
   };
 }
