@@ -1,44 +1,37 @@
-import { Text, Pressable, StyleSheet } from 'react-native'
-import { useCartStore } from '../state/cart'
-import { useRouter } from 'expo-router'
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useCartStore } from '../state/cart';
 
-export function CartBadge() {
-  const getTotalItems = useCartStore((s) => s.getTotalItems)
-  const count = getTotalItems()
-  const router = useRouter()
-
-  if (count === 0) return null
+export default function CartBadge({ children }) {
+  const count = useCartStore((s) => s.getTotalItems());
 
   return (
-    <Pressable
-      onPress={() => router.push('/cart')}
-      style={styles.badge}
-      accessibilityRole="button"
-      accessibilityLabel={`Open cart, ${count} items`}
-    >
-      <Text style={styles.text}>Cart · {count}</Text>
-    </Pressable>
-  )
+    <View>
+      {children}
+      {count > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.text}>{count}</Text>
+        </View>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    top: -5,
+    right: -10,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   text: {
-    color: '#000',
-    fontWeight: '600',
-    fontSize: 14,
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
-})
+});

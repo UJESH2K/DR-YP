@@ -1,4 +1,4 @@
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -6,13 +6,14 @@ import React, { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/state/auth';
 import Toast from '../src/components/Toast';
-import { BackHandler } from 'react-native'; // Import BackHandler
+import { useCustomRouter } from '../src/hooks/useCustomRouter';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const { isAuthenticated, user, loadUser } = useAuthStore();
   const [appIsReady, setAppIsReady] = React.useState(false);
+  const router = useCustomRouter();
 
   useEffect(() => {
     async function prepare() {
@@ -50,24 +51,6 @@ export default function RootLayout() {
       }
     }
   }, [isAuthenticated, user, appIsReady]);
-
-  // Add BackHandler useEffect
-  useEffect(() => {
-    const backAction = () => {
-      if (router.canGoBack()) {
-        router.back();
-        return true; // Prevent default behavior
-      }
-      return false; // Allow default behavior (exit app)
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-
-    return () => backHandler.remove();
-  }, []); // Empty dependency array means this runs once on mount and unmount
 
 
   if (!appIsReady) {

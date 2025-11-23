@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Button, Alert, ActivityI
 import * as ImagePicker from 'expo-image-picker';
 import { MediaTypeOptions } from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { apiCall } from '../../src/lib/api';
 
 // Helper function to upload an image
@@ -39,7 +40,7 @@ const uploadImage = async (uri) => {
 
 export default function EditProductScreen() {
   const { id } = useLocalSearchParams();
-  const router = useRouter();
+  const router = useCustomRouter();
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 

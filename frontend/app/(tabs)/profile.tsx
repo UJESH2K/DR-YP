@@ -9,12 +9,12 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/state/auth';
 
 export default function ProfileScreen() {
-  const router = useRouter();
+  const router = useCustomRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
 
   const handleLogout = () => {

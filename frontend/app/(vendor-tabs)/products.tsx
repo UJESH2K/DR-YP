@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../src/state/auth';
 import { apiCall } from '../../src/lib/api';
@@ -228,7 +228,7 @@ export default function ManageProductsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const router = useRouter();
+  const router = useCustomRouter();
   const { user, isAuthenticated } = useAuthStore();
 
   const fetchProducts = useCallback(async () => {

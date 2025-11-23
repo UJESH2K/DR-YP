@@ -31,6 +31,7 @@ export default function SearchScreen() {
   const [categories, setCategories] = useState<string[]>([]);
   const [colors, setColors] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<Item[]>([]);
+  const [recentSearches, setRecentSearches] = useState<{ query: string; image: string }[]>([]);
   
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -89,7 +90,15 @@ export default function SearchScreen() {
 
     try {
       const products = await apiCall(endpoint);
-      setResults(Array.isArray(products) ? mapProductsToItems(products) : []);
+      const items = Array.isArray(products) ? mapProductsToItems(products) : [];
+      setResults(items);
+      if (searchQuery && items.length > 0) {
+        setRecentSearches(prev => {
+          const newSearch = { query: searchQuery, image: items[0].image };
+          const updatedSearches = [newSearch, ...prev.filter(rs => rs.query !== searchQuery)];
+          return updatedSearches.slice(0, 5);
+        });
+      }
     } catch (error) { console.error("Failed to fetch data:", error); } 
     finally { setLoading(false); }
   }, [searchQuery, selectedBrand, selectedCategory, selectedColor, minPrice, maxPrice]);
@@ -218,6 +227,7 @@ export default function SearchScreen() {
       </View>
       <FlatList
         data={[
+          { type: 'recent-searches', data: recentSearches, title: 'Recent Searches' },
           { type: 'search-results', data: results, title: 'Search Results' },
           { type: 'trending', data: trending, title: 'Trending Now' },
           { type: 'recommendations', data: recommendations, title: 'You Might Also Like' },
@@ -226,6 +236,30 @@ export default function SearchScreen() {
         renderItem={({ item }) => {
           if (loading && (item.type === 'search-results')) {
             return <ActivityIndicator size="large" style={{marginTop: 50}} />;
+          }
+
+          if (item.type === 'recent-searches' && recentSearches.length > 0 && results.length === 0 && searchQuery.length < 3) {
+            return (
+              <View>
+                <Text style={styles.sectionTitle}>{item.title}</Text>
+                <FlatList
+                  horizontal
+                  data={item.data}
+                  renderItem={({ item: recentSearch }) => (
+                    <Pressable style={styles.recentSearchCard} onPress={() => {
+                      setSearchQuery(recentSearch.query);
+                      fetchData();
+                    }}>
+                      <Image source={{ uri: recentSearch.image }} style={styles.recentSearchImage} />
+                      <Text style={styles.recentSearchTitle}>{recentSearch.query}</Text>
+                    </Pressable>
+                  )}
+                  keyExtractor={(recentSearch) => recentSearch.query}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 20 }}
+                />
+              </View>
+            );
           }
 
           if (item.type === 'search-results' && (results.length > 0 || searchQuery.length > 2)) {
@@ -318,4 +352,7 @@ const styles = StyleSheet.create({
   clearButtonText: { color: '#000', fontWeight: 'bold' },
   applyButton: { backgroundColor: '#000' },
   applyButtonText: { color: '#fff', fontWeight: 'bold' },
+  recentSearchCard: { width: 120, marginRight: 15 },
+  recentSearchImage: { width: '100%', height: 120, borderRadius: 10, backgroundColor: '#f5f5f5' },
+  recentSearchTitle: { fontSize: 14, fontWeight: '600', color: '#1a1a1a', marginTop: 10 },
 });

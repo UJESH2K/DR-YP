@@ -10,12 +10,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { useAuthStore } from '../../src/state/auth';
 import { apiCall } from '../../src/lib/api';
 
 export default function StyleScreen() {
-  const router = useRouter();
+  const router = useCustomRouter();
   const { user, updateUser } = useAuthStore();
 
   const [selectedStyles, setSelectedStyles] = useState(user?.preferences?.categories || []);

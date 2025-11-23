@@ -11,7 +11,8 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { useAuthStore } from '../../src/state/auth';
 import { apiCall } from '../../src/lib/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +25,7 @@ export default function StoreProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
-  const router = useRouter();
+  const router = useCustomRouter();
 
   const fetchVendorProfile = useCallback(async () => {
     if (user?.role !== 'vendor') return;

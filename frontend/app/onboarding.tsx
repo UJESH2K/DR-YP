@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useCustomRouter } from '../src/hooks/useCustomRouter';
 import { useAuthStore } from '../src/state/auth';
 import { apiCall } from '../src/lib/api';
 
@@ -32,7 +32,7 @@ const colorOptions = [
 type OnboardingStep = 'categories' | 'colors' | 'brands';
 
 export default function Onboarding() {
-  const router = useRouter();
+  const router = useCustomRouter();
   const { user, updateUser } = useAuthStore();
   
   const [step, setStep] = useState<OnboardingStep>('categories');

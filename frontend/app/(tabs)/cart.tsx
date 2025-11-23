@@ -5,15 +5,14 @@ import { apiCall } from '../../src/lib/api';
 import { useCartStore, CartItem } from '../../src/state/cart';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import ProductDetailModal from '../../src/components/ProductDetailModal';
+import { useToastStore } from '../../src/state/toast';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 export default function CartScreen() {
   const { items, removeFromCart, updateQuantity, updateCartItem } = useCartStore();
-  const [selectedProductIdForModal, setSelectedProductIdForModal] = React.useState<string | null>(null);
-  const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [productDetails, setProductDetails] = React.useState<any>({});
+  const showToast = useToastStore((state) => state.showToast);
 
   const handleVariantChange = React.useCallback((cartItem: CartItem, newOptions: { [key: string]: string }) => {
     const product = productDetails[cartItem.productId];
@@ -67,11 +66,21 @@ export default function CartScreen() {
     return items.every(item => {
       const product = productDetails[item.productId];
       if (product && product.variants?.length > 0) {
-        return item.options && Object.keys(item.options).length > 0;
+        const requiredOptions = product.options.length;
+        const selectedOptions = item.options ? Object.keys(item.options).length : 0;
+        return requiredOptions === selectedOptions;
       }
       return true;
     });
   }, [items, productDetails]);
+  
+  const handleCheckout = () => {
+    if (isEveryVariantSelected) {
+      router.push('/checkout');
+    } else {
+      showToast('Please select variants for all items.', 'error');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -90,61 +99,60 @@ export default function CartScreen() {
           <ScrollView style={styles.itemList}>
             {items.map((item) => (
               <View key={item.id} style={styles.itemCard}>
-                <Pressable 
-                  onPress={() => {
-                    setSelectedProductIdForModal(item.productId);
-                    setIsModalVisible(true);
-                  }}
-                >
-                  <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.itemImage} />
-                </Pressable>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemBrand}>{item.brand}</Text>
-                  <Text style={styles.itemTitle}>{item.title}</Text>
-                  <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
-                </View>
-                <View style={styles.itemControls}>
-                  <View style={styles.quantityControls}>
-                    <Pressable onPress={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}>
-                      <Ionicons name="remove-circle-outline" size={24} color="#666" />
-                    </Pressable>
-                    <Text style={styles.quantityText}>{item.quantity}</Text>
-                    <Pressable onPress={() => updateQuantity(item.id, item.quantity + 1)}>
-                      <Ionicons name="add-circle-outline" size={24} color="#666" />
+                <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.itemImage} />
+                <View style={styles.itemContent}>
+                  <View style={styles.itemHeader}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemBrand}>{item.brand}</Text>
+                      <Text style={styles.itemTitle}>{item.title}</Text>
+                    </View>
+                    <Pressable onPress={() => removeFromCart(item.id)} style={styles.removeButton}>
+                      <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
                     </Pressable>
                   </View>
-                  <Pressable onPress={() => removeFromCart(item.id)}>
-                    <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
-                  </Pressable>
-                </View>
-                {productDetails[item.productId] && productDetails[item.productId].variants?.length > 0 && (
-                  <View style={styles.variantSelector}>
-                    {productDetails[item.productId].options.map((option: any) => (
-                      <View key={option.name} style={styles.optionContainer}>
-                        <Text style={styles.optionTitle}>{option.name}</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                          {option.values.map((value: string) => (
-                            <Pressable
-                              key={value}
-                              style={[
-                                styles.optionButton,
-                                item.options && item.options[option.name] === value && styles.optionButtonSelected,
-                              ]}
-                              onPress={() => handleVariantChange(item, { ...item.options, [option.name]: value })}
-                            >
-                              <Text style={[
-                                styles.optionText,
-                                item.options && item.options[option.name] === value && styles.optionTextSelected,
-                              ]}>
-                                {value}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    ))}
+                  
+                  {productDetails[item.productId] && productDetails[item.productId].variants?.length > 0 && (
+                    <View style={styles.variantSelector}>
+                      {productDetails[item.productId].options.map((option: any) => (
+                        <View key={option.name} style={styles.optionContainer}>
+                          <Text style={styles.optionTitle}>{option.name}:</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {option.values.map((value: string) => (
+                              <Pressable
+                                key={value}
+                                style={[
+                                  styles.optionButton,
+                                  item.options && item.options[option.name] === value && styles.optionButtonSelected,
+                                ]}
+                                onPress={() => handleVariantChange(item, { ...item.options, [option.name]: value })}
+                              >
+                                <Text style={[
+                                  styles.optionText,
+                                  item.options && item.options[option.name] === value && styles.optionTextSelected,
+                                ]}>
+                                  {value}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <View style={styles.itemFooter}>
+                    <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+                    <View style={styles.quantityControls}>
+                      <Pressable onPress={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}>
+                        <Ionicons name="remove-circle-outline" size={28} color="#666" />
+                      </Pressable>
+                      <Text style={styles.quantityText}>{item.quantity}</Text>
+                      <Pressable onPress={() => updateQuantity(item.id, item.quantity + 1)}>
+                        <Ionicons name="add-circle-outline" size={28} color="#666" />
+                      </Pressable>
+                    </View>
                   </View>
-                )}
+                </View>
               </View>
             ))}
           </ScrollView>
@@ -154,20 +162,14 @@ export default function CartScreen() {
               <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
             </View>
             <Pressable 
-              style={[styles.checkoutButton, !isEveryVariantSelected && styles.checkoutButtonDisabled]} 
-              onPress={() => router.push('/checkout')}
-              disabled={!isEveryVariantSelected}
+              style={styles.checkoutButton}
+              onPress={handleCheckout}
             >
               <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
             </Pressable>
           </View>
         </>
       )}
-      <ProductDetailModal
-        productId={selectedProductIdForModal}
-        isVisible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-      />
     </SafeAreaView>
   );
 }
@@ -191,32 +193,50 @@ const styles = StyleSheet.create({
   itemList: { flex: 1 },
   itemCard: {
     backgroundColor: '#ffffff',
-    padding: 16,
+    padding: 12,
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
+    flexDirection: 'row',
   },
-  itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 16 },
+  itemImage: { width: 80, height: 80, borderRadius: 8, marginRight: 12 },
+  itemContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   itemInfo: { flex: 1 },
-  itemBrand: { fontSize: 12, color: '#888', textTransform: 'uppercase' },
-  itemTitle: { fontSize: 16, fontWeight: '600', marginVertical: 2 },
-  itemPrice: { fontSize: 14, color: '#1a1a1a', marginTop: 8 },
-  optionContainer: {
+  itemBrand: { fontSize: 12, color: '#888', textTransform: 'uppercase', marginBottom: 2 },
+  itemTitle: { fontSize: 16, fontWeight: '600' },
+  itemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 8,
+  },
+  itemPrice: { fontSize: 16, fontWeight: 'bold' },
+  optionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
   },
   optionTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: '#666',
-    marginBottom: 4,
+    marginRight: 6,
   },
   optionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#ccc',
-    marginRight: 8,
+    marginRight: 6,
     backgroundColor: '#f0f0f0',
   },
   optionButtonSelected: {
@@ -231,26 +251,19 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   variantSelector: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    paddingTop: 16,
+    marginTop: 8,
   },
-  itemControls: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-    alignItems: 'flex-end',
+  removeButton: {
+    padding: 4,
   },
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   quantityText: {
     fontSize: 16,
     fontWeight: '600',
-    marginHorizontal: 12,
+    marginHorizontal: 10,
   },
   summaryContainer: {
     backgroundColor: '#ffffff',
@@ -271,9 +284,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-  },
-  checkoutButtonDisabled: {
-    backgroundColor: '#A9A9A9',
   },
   checkoutButtonText: {
     color: '#ffffff',
