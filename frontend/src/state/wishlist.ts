@@ -21,9 +21,8 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
       if (existingItem) return; // Don't add if it's already there
 
       set(state => ({ items: [...state.items, product] }));
-      await apiCall('/api/wishlist', {
+      await apiCall(`/api/wishlist/${product._id}`, {
         method: 'POST',
-        body: JSON.stringify({ productId: product._id }),
       });
     } catch (error) {
       console.error('Failed to add item to wishlist:', error);

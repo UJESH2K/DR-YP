@@ -1,23 +1,77 @@
-import React, { useState } from 'react';
+import * as React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { apiCall } from '../../src/lib/api';
 import { useCartStore, CartItem } from '../../src/state/cart';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
-import VariantSelectionModal from '../../src/components/VariantSelectionModal';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 export default function CartScreen() {
-  const { items, removeFromCart, updateQuantity } = useCartStore();
-  const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedCartItem, setSelectedCartItem] = useState<CartItem | null>(null);
-  const [isVariantModalVisible, setIsVariantModalVisible] = useState(false);
+  const { items, removeFromCart, updateQuantity, updateCartItem } = useCartStore();
+  const [selectedProductIdForModal, setSelectedProductIdForModal] = React.useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
+  const [productDetails, setProductDetails] = React.useState<any>({});
+
+  const handleVariantChange = React.useCallback((cartItem: CartItem, newOptions: { [key: string]: string }) => {
+    const product = productDetails[cartItem.productId];
+    if (!product) return;
+
+    const newVariant = product.variants.find((v: any) => {
+      return Object.keys(newOptions).every(key => v.options[key] === newOptions[key]);
+    });
+
+    const price = newVariant?.price ?? product.basePrice;
+
+    if (typeof price === 'number') {
+      updateCartItem(cartItem.id, {
+        ...cartItem,
+        price,
+        options: newOptions,
+        image: newVariant?.images?.[0] || cartItem.image,
+      });
+    } else {
+      console.warn("Selected variant not found or price is invalid");
+    }
+  }, [productDetails, updateCartItem]);
+
+  React.useEffect(() => {
+    const fetchProductDetails = async () => {
+      const missingDetails = items.filter(item => !productDetails[item.productId]);
+      if (missingDetails.length === 0) return;
+      
+      const details: any = {};
+      for (const item of missingDetails) {
+        try {
+          const product = await apiCall(`/api/products/${item.productId}`);
+          details[item.productId] = product;
+        } catch (error) {
+          console.error(`Failed to fetch product details for ${item.productId}:`, error);
+        }
+      }
+      setProductDetails(prev => ({ ...prev, ...details }));
+    };
+
+    fetchProductDetails();
+  }, [items]);
   
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+  const formatPrice = React.useCallback((price: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
+  , []);
+
+  const isEveryVariantSelected = React.useMemo(() => {
+    return items.every(item => {
+      const product = productDetails[item.productId];
+      if (product && product.variants?.length > 0) {
+        return item.options && Object.keys(item.options).length > 0;
+      }
+      return true;
+    });
+  }, [items, productDetails]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -35,34 +89,18 @@ export default function CartScreen() {
         <>
           <ScrollView style={styles.itemList}>
             {items.map((item) => (
-              <Pressable 
-                key={item.id} 
-                style={styles.itemCard} 
-                onPress={() => {
-                  setSelectedProductIdForModal(item.productId);
-                  setIsModalVisible(true);
-                }}
-              >
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
+              <View key={item.id} style={styles.itemCard}>
+                <Pressable 
+                  onPress={() => {
+                    setSelectedProductIdForModal(item.productId);
+                    setIsModalVisible(true);
+                  }}
+                >
+                  <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.itemImage} />
+                </Pressable>
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemBrand}>{item.brand}</Text>
                   <Text style={styles.itemTitle}>{item.title}</Text>
-                  {item.options && (
-                    <View>
-                      <Text style={styles.itemOptions}>
-                        {Object.keys(item.options).map(key => `${key}: ${item.options[key]}`).join(', ')}
-                      </Text>
-                      <Pressable 
-                        style={styles.changeButton}
-                        onPress={() => {
-                          setSelectedCartItem(item);
-                          setIsVariantModalVisible(true);
-                        }}
-                      >
-                        <Text style={styles.changeButtonText}>Change</Text>
-                      </Pressable>
-                    </View>
-                  )}
                   <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
                 </View>
                 <View style={styles.itemControls}>
@@ -79,7 +117,35 @@ export default function CartScreen() {
                     <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
                   </Pressable>
                 </View>
-              </Pressable>
+                {productDetails[item.productId] && productDetails[item.productId].variants?.length > 0 && (
+                  <View style={styles.variantSelector}>
+                    {productDetails[item.productId].options.map((option: any) => (
+                      <View key={option.name} style={styles.optionContainer}>
+                        <Text style={styles.optionTitle}>{option.name}</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          {option.values.map((value: string) => (
+                            <Pressable
+                              key={value}
+                              style={[
+                                styles.optionButton,
+                                item.options && item.options[option.name] === value && styles.optionButtonSelected,
+                              ]}
+                              onPress={() => handleVariantChange(item, { ...item.options, [option.name]: value })}
+                            >
+                              <Text style={[
+                                styles.optionText,
+                                item.options && item.options[option.name] === value && styles.optionTextSelected,
+                              ]}>
+                                {value}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
             ))}
           </ScrollView>
           <View style={styles.summaryContainer}>
@@ -87,7 +153,11 @@ export default function CartScreen() {
               <Text style={styles.summaryLabel}>Subtotal</Text>
               <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
             </View>
-            <Pressable style={styles.checkoutButton} onPress={() => router.push('/checkout')}>
+            <Pressable 
+              style={[styles.checkoutButton, !isEveryVariantSelected && styles.checkoutButtonDisabled]} 
+              onPress={() => router.push('/checkout')}
+              disabled={!isEveryVariantSelected}
+            >
               <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
             </Pressable>
           </View>
@@ -97,11 +167,6 @@ export default function CartScreen() {
         productId={selectedProductIdForModal}
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
-      />
-      <VariantSelectionModal
-        cartItem={selectedCartItem}
-        isVisible={isVariantModalVisible}
-        onClose={() => setIsVariantModalVisible(false)}
       />
     </SafeAreaView>
   );
@@ -130,25 +195,53 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 16 },
   itemInfo: { flex: 1 },
   itemBrand: { fontSize: 12, color: '#888', textTransform: 'uppercase' },
   itemTitle: { fontSize: 16, fontWeight: '600', marginVertical: 2 },
-  itemOptions: { fontSize: 12, color: '#888', marginBottom: 4 },
-  itemPrice: { fontSize: 14, color: '#1a1a1a' },
-  changeButton: {
-    marginTop: 4,
-    paddingVertical: 2,
+  itemPrice: { fontSize: 14, color: '#1a1a1a', marginTop: 8 },
+  optionContainer: {
+    marginTop: 8,
   },
-  changeButtonText: {
+  optionTitle: {
     fontSize: 12,
-    color: '#007AFF',
     fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
   },
-  itemControls: { alignItems: 'flex-end' },
+  optionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginRight: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  optionButtonSelected: {
+    backgroundColor: '#000',
+    borderColor: '#000',
+  },
+  optionText: {
+    color: '#000',
+    fontSize: 12,
+  },
+  optionTextSelected: {
+    color: '#fff',
+  },
+  variantSelector: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    paddingTop: 16,
+  },
+  itemControls: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    alignItems: 'flex-end',
+  },
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,6 +271,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  checkoutButtonDisabled: {
+    backgroundColor: '#A9A9A9',
   },
   checkoutButtonText: {
     color: '#ffffff',
