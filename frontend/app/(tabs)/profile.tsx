@@ -15,7 +15,7 @@ import { useAuthStore } from '../../src/state/auth';
 
 export default function ProfileScreen() {
   const router = useCustomRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, isGuest, guestId, logout } = useAuthStore();
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -25,7 +25,7 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/(tabs)/home'); // Go to home after logout
+          router.replace('/login'); // Go to login after logout
         },
       },
     ]);
@@ -41,24 +41,42 @@ export default function ProfileScreen() {
     { id: 'about', title: 'About', icon: <Ionicons name="information-circle-outline" size={22} color="#000" />, onPress: () => router.push('/account/about') },
   ];
 
-  if (!isAuthenticated || !user) {
+  if (isGuest && !isAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <View style={styles.guestHeader}>
           <Text style={styles.guestHeaderText}>Account</Text>
         </View>
-        <View style={styles.guestView}>
-          <Text style={styles.profileName}>Welcome to DR-YP</Text>
-          <Text style={styles.guestSubtitle}>Sign in to manage your orders, wishlist, and more.</Text>
-          <Pressable style={styles.signInButton} onPress={() => router.push('/login')}>
-            <Text style={styles.signInButtonText}>Sign In or Create Account</Text>
-          </Pressable>
+        <View style={styles.profileSection}>
+          <View style={styles.profileAvatar}>
+            <Text style={styles.profileAvatarText}>G</Text>
+          </View>
+          <Text style={styles.profileName}>Guest User</Text>
+          {guestId && <Text style={styles.profileEmail}>ID: {guestId}</Text>}
         </View>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.menuSection}>
+            <Pressable style={styles.menuItem} onPress={() => router.push('/account/orders')}>
+              <View style={styles.menuItemLeft}>
+                <Text style={styles.menuItemIcon}><MaterialIcons name="local-shipping" size={22} color="#000" /></Text>
+                <Text style={styles.menuItemTitle}>My Orders</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+          </View>
+          <View style={styles.guestCtaSection}>
+            <Text style={styles.guestCtaText}>Want to save your preferences and orders?</Text>
+            <Pressable style={styles.signInButton} onPress={() => router.push('/login')}>
+              <Text style={styles.signInButtonText}>Sign In or Create Account</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
+  // Existing authenticated user view
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -220,7 +238,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
   },
-  guestView: {
+  guestView: { // This style is no longer used directly for the main layout, replaced by profileSection and guestCtaSection
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -233,15 +251,45 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
   },
+  guestButton: { // No longer needed as it's part of menuItems
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    marginBottom: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  guestButtonText: { // No longer needed
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   signInButton: {
     backgroundColor: '#000',
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
   },
   signInButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  guestCtaSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    marginTop: 20,
+  },
+  guestCtaText: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 15,
   },
 });

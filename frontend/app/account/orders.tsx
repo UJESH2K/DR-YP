@@ -17,14 +17,14 @@ import { useAuthStore } from '../../src/state/auth';
 
 export default function OrdersScreen() {
   const router = useCustomRouter();
-  const { user } = useAuthStore();
+  const { user, isGuest, guestId } = useAuthStore();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchOrders = useCallback(async () => {
-    if (!user) {
-      setError("User not logged in.");
+    if (!user && (!isGuest || !guestId)) {
+      setError("User not logged in or no guest session found.");
       setLoading(false);
       return;
     }
@@ -43,7 +43,7 @@ export default function OrdersScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isGuest, guestId]);
 
   useFocusEffect(
     useCallback(() => {

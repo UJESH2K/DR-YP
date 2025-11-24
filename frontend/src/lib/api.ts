@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '../state/auth';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
@@ -11,24 +12,29 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
     const fullUrl = `${API_BASE_URL}${endpoint}`;
     console.log(`🚀 FRONTEND API CALL: ${options.method || 'GET'} ${fullUrl}`);
 
-    const token = await AsyncStorage.getItem('user_token');
+    const { token, isGuest, guestId } = useAuthStore.getState();
     console.log(`🔑 Auth Token:`, token ? 'Present' : 'Missing');
     
     const headers = { ...options.headers };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    } else if (isGuest && guestId) {
+      headers['x-guest-id'] = guestId;
     }
 
+    let body = options.body;
+
     // Don't set Content-Type for FormData, and don't stringify the body
-    if (!(options.body instanceof FormData)) {
+    if (!(body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
-      if (options.body) {
-        console.log(`📤 Sending data:`, options.body);
+      if (body) {
+        console.log(`📤 Sending data:`, body);
       }
     }
 
     const response = await fetch(fullUrl, {
       ...options,
+      body,
       headers,
     });
 
@@ -63,35 +69,27 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
 }
 
 // Send user interaction to backend (like, dislike, cart)
-export async function sendInteraction(action: 'like' | 'dislike' | 'cart', itemId: string, userId?: string) {
-  const payload = {
-    userId: userId || 'anonymous_user', // fallback for now
+export async function sendInteraction(action: 'like' | 'dislike', itemId: string) {
+  const payload: { [key: string]: any } = {
     productId: itemId,
-    action,
-    timestamp: new Date().toISOString(),
   };
+  
+  const { isGuest, guestId } = useAuthStore.getState();
+  if (isGuest && guestId) {
+    payload.guestId = guestId;
+  }
 
   if (action === 'like') {
     return apiCall(`/api/likes/${itemId}`, {
       method: 'POST',
+      body: JSON.stringify(payload),
     });
   }
 
   if (action === 'dislike') {
     return apiCall(`/api/likes/${itemId}`, {
       method: 'DELETE',
-    });
-  }
-
-  if (action === 'cart') {
-    // Send to orders endpoint for cart actions
-    return apiCall('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...payload,
-        items: [{ productId: itemId, quantity: 1 }],
-        status: 'cart',
-      }),
+      body: JSON.stringify(payload),
     });
   }
 }

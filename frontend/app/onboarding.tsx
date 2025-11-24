@@ -13,11 +13,24 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomRouter } from '../src/hooks/useCustomRouter';
 import { useAuthStore } from '../src/state/auth';
+import { useSettingsStore } from '../src/state/settings';
+import { useCacheStore } from '../src/state/cache';
 import { apiCall } from '../src/lib/api';
+import SingleSelectDropdown from '../src/components/SingleSelectDropdown';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-// Color options remain static
+const countryCurrencyOptions = [
+  { label: '🇮🇳 India (INR)', value: 'INR' },
+  { label: '🇺🇸 United States (USD)', value: 'USD' },
+  { label: '🇪🇺 Europe (EUR)', value: 'EUR' },
+  { label: '🇬🇧 United Kingdom (GBP)', value: 'GBP' },
+  { label: '🇯🇵 Japan (JPY)', value: 'JPY' },
+  { label: '🇨🇦 Canada (CAD)', value: 'CAD' },
+  { label: '🇦🇺 Australia (AUD)', value: 'AUD' },
+];
+
 const colorOptions = [
   { id: 'black', name: 'Black', color: '#000000' },
   { id: 'white', name: 'White', color: '#FFFFFF' },
@@ -29,20 +42,21 @@ const colorOptions = [
   { id: 'brown', name: 'Brown', color: '#795548' },
 ];
 
-type OnboardingStep = 'categories' | 'colors' | 'brands';
+type OnboardingStep = 'currency' | 'categories' | 'colors' | 'brands';
 
 export default function Onboarding() {
   const router = useCustomRouter();
   const { user, updateUser } = useAuthStore();
-  
-  const [step, setStep] = useState<OnboardingStep>('categories');
-  
-  // State for dynamic data
-  const [categories, setCategories] = useState<string[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
+  const { currency, setCurrency } = useSettingsStore();
+  const { categories: cachedCategories, brands: cachedBrands, setCategories: setCachedCategories, setBrands: setCachedBrands } = useCacheStore();
+
+  const [step, setStep] = useState<OnboardingStep>('currency');
+
+  const [categories, setCategories] = useState<string[]>(cachedCategories.data || []);
+  const [brands, setBrands] = useState<string[]>(cachedBrands.data || []);
   const [isFetching, setIsFetching] = useState(true);
 
-  // State for user selections
+  const [selectedCurrency, setSelectedCurrency] = useState(currency);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(user?.preferences?.categories || []);
   const [selectedColors, setSelectedColors] = useState<string[]>(user?.preferences?.colors || []);
   const [selectedBrands, setSelectedBrands] = useState<string[]>(user?.preferences?.brands || []);
@@ -51,12 +65,29 @@ export default function Onboarding() {
 
   useEffect(() => {
     const fetchPreferenceData = async () => {
+      if (!user) return; // Fix race condition
+
+      setIsFetching(true);
       try {
-        setIsFetching(true);
-        const [categoriesData, brandsData] = await Promise.all([
-          apiCall('/api/products/categories'),
-          apiCall('/api/products/brands')
-        ]);
+        const now = Date.now();
+        const categoriesPromise =
+          cachedCategories.timestamp && now - cachedCategories.timestamp < CACHE_DURATION
+            ? Promise.resolve(cachedCategories.data)
+            : apiCall('/api/products/categories').then(data => {
+                if (Array.isArray(data)) setCachedCategories(data);
+                return data;
+              });
+
+        const brandsPromise =
+          cachedBrands.timestamp && now - cachedBrands.timestamp < CACHE_DURATION
+            ? Promise.resolve(cachedBrands.data)
+            : apiCall('/api/products/brands').then(data => {
+                if (Array.isArray(data)) setCachedBrands(data);
+                return data;
+              });
+
+        const [categoriesData, brandsData] = await Promise.all([categoriesPromise, brandsPromise]);
+
         if (Array.isArray(categoriesData)) setCategories(categoriesData);
         if (Array.isArray(brandsData)) setBrands(brandsData);
       } catch (error) {
@@ -66,24 +97,22 @@ export default function Onboarding() {
       }
     };
     fetchPreferenceData();
-  }, []);
+  }, [user]); // Depend on user
 
   const toggleSelection = (array: string[], setArray: (arr: string[]) => void, item: string) => {
-    if (array.includes(item)) {
-      setArray(array.filter(i => i !== item));
-    } else {
-      setArray([...array, item]);
-    }
+    setArray(array.includes(item) ? array.filter(i => i !== item) : [...array, item]);
   };
 
   const handleNext = () => {
-    if (step === 'categories') setStep('colors');
+    if (step === 'currency') setStep('categories');
+    else if (step === 'categories') setStep('colors');
     else if (step === 'colors') setStep('brands');
   };
 
   const handleBack = () => {
     if (step === 'brands') setStep('colors');
     else if (step === 'colors') setStep('categories');
+    else if (step === 'categories') setStep('currency');
   };
 
   const finishOnboarding = async () => {
@@ -92,6 +121,7 @@ export default function Onboarding() {
     setIsLoading(true);
     try {
       const preferences = {
+        currency: selectedCurrency,
         categories: selectedCategories,
         colors: selectedColors,
         brands: selectedBrands,
@@ -104,6 +134,7 @@ export default function Onboarding() {
 
       if (updatedUser) {
         await updateUser(updatedUser);
+        setCurrency(selectedCurrency);
         router.replace('/(tabs)/home');
       } else {
         throw new Error('Failed to save preferences');
@@ -118,16 +149,28 @@ export default function Onboarding() {
   };
 
   const renderPreferenceScreen = () => {
-    if (isFetching) {
+    if (isFetching && step !== 'currency') {
       return <ActivityIndicator size="large" style={styles.centered} />;
     }
 
     let content;
     switch (step) {
+      case 'currency':
+        content = (
+          <View style={styles.currencyContainer}>
+            <SingleSelectDropdown
+              options={countryCurrencyOptions}
+              selectedValue={selectedCurrency}
+              onSelectionChange={setSelectedCurrency}
+              placeholder="Select your currency"
+            />
+          </View>
+        );
+        break;
       case 'categories':
         content = (
           <FlatList
-            key="categories-list" // Unique key for this FlatList
+            key="categories-list"
             data={categories}
             keyExtractor={(item) => item}
             numColumns={2}
@@ -148,7 +191,7 @@ export default function Onboarding() {
       case 'colors':
         content = (
           <FlatList
-            key="colors-list" // Unique key for this FlatList
+            key="colors-list"
             data={colorOptions}
             keyExtractor={(item) => item.id}
             numColumns={4}
@@ -167,7 +210,7 @@ export default function Onboarding() {
       case 'brands':
         content = (
           <FlatList
-            key="brands-list" // Unique key for this FlatList
+            key="brands-list"
             data={brands}
             keyExtractor={(item) => item}
             numColumns={2}
@@ -193,7 +236,8 @@ export default function Onboarding() {
       <>
         <View style={styles.header}>
           <Text style={styles.title}>
-            {step === 'categories' ? 'Choose Your Styles' :
+            {step === 'currency' ? 'Select Your Currency' :
+             step === 'categories' ? 'Choose Your Styles' :
              step === 'colors' ? 'Select Favorite Colors' :
              'Pick Preferred Brands'}
           </Text>
@@ -203,15 +247,15 @@ export default function Onboarding() {
         {content}
 
         <View style={styles.footer}>
-          {step !== 'categories' && (
+          {step !== 'currency' && (
             <Pressable style={styles.backButton} onPress={handleBack}>
               <Text style={styles.backButtonText}>Back</Text>
             </Pressable>
           )}
           <Pressable
-            style={[styles.nextButton, (isLoading || isFetching) && styles.disabledButton]}
+            style={[styles.nextButton, (isLoading || (isFetching && step !== 'currency')) && styles.disabledButton]}
             onPress={step === 'brands' ? finishOnboarding : handleNext}
-            disabled={isLoading || isFetching}
+            disabled={isLoading || (isFetching && step !== 'currency')}
           >
             {isLoading ? (
               <ActivityIndicator color="#ffffff" />
@@ -234,8 +278,6 @@ export default function Onboarding() {
     </SafeAreaView>
   );
 }
-
-// ... (keep all the same styles from the previous code)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -262,6 +304,10 @@ const styles = StyleSheet.create({
   },
   grid: {
     paddingHorizontal: 16,
+  },
+  currencyContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 40,
   },
   optionCard: {
     flex: 1,
@@ -372,3 +418,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#cccccc',
   },
 });
+

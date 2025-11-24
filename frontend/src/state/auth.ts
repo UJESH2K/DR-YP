@@ -12,6 +12,7 @@ export interface User {
   role: 'user' | 'vendor' | 'admin';
   createdAt: string;
   preferences: {
+    currency: string;
     categories: string[];
     colors: string[];
     brands: string[];
@@ -22,8 +23,11 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  isGuest: boolean;
+  guestId: string | null;
   isLoading: boolean;
   // Actions
+  initGuestUser: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<User | null>;
   login: (email: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
@@ -31,26 +35,45 @@ interface AuthState {
   updateUser: (user: User) => Promise<void>;
 }
 
+const generateGuestId = () => `guest_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   isAuthenticated: false,
+  isGuest: false,
+  guestId: null,
   isLoading: false,
+
+  initGuestUser: async () => {
+    try {
+      let guestId = await AsyncStorage.getItem('guest_id');
+      if (!guestId) {
+        guestId = generateGuestId();
+        await AsyncStorage.setItem('guest_id', guestId);
+      }
+      set({ isGuest: true, guestId, isAuthenticated: false, user: null, token: null });
+    } catch (error) {
+      console.error('Error initializing guest user:', error);
+    }
+  },
 
   register: async (name, email, password) => {
     set({ isLoading: true });
     try {
+      const guestId = get().guestId;
       const response = await apiCall('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, guestId }),
       });
 
       if (response && response.token) {
         const { token, user } = response;
-        set({ user, token, isAuthenticated: true });
+        set({ user, token, isAuthenticated: true, isGuest: false, guestId: null });
         await AsyncStorage.setItem('user_token', token);
         await AsyncStorage.setItem('user_data', JSON.stringify(user));
-        // Clear wishlist for a new user
+        await AsyncStorage.removeItem('guest_id');
+        
         useWishlistStore.getState().setWishlist([]);
         useToastStore.getState().showToast('Registered successfully!');
         return user;
@@ -70,22 +93,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ isLoading: true });
     try {
+      const guestId = get().guestId;
       const response = await apiCall('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, guestId }),
       });
 
       if (response && response.token) {
         const { token, user } = response;
-        set({ user, token, isAuthenticated: true });
+        set({ user, token, isAuthenticated: true, isGuest: false, guestId: null });
         await AsyncStorage.setItem('user_token', token);
         await AsyncStorage.setItem('user_data', JSON.stringify(user));
+        await AsyncStorage.removeItem('guest_id');
 
-        // Fetch and set wishlist
         const wishlistItems = await apiCall('/api/wishlist');
         if (Array.isArray(wishlistItems)) {
           const validWishlistProducts = wishlistItems
-            .filter(item => item && item.product) // Filter out null/undefined items and items with no product
+            .filter(item => item && item.product)
             .map(item => item.product);
           useWishlistStore.getState().setWishlist(validWishlistProducts);
         }
@@ -104,14 +128,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: false });
     }
   },
+  
   logout: async () => {
     set({ isLoading: true });
     try {
       await AsyncStorage.removeItem('user_token');
       await AsyncStorage.removeItem('user_data');
-      set({ user: null, token: null, isAuthenticated: false });
-      // Clear wishlist on logout
       useWishlistStore.getState().setWishlist([]);
+      // Instead of clearing everything, initialize a new guest session
+      await get().initGuestUser();
     } catch (error) {
       console.error('Error logging out:', error);
     } finally {
@@ -126,19 +151,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const userData = await AsyncStorage.getItem('user_data');
       if (token && userData) {
         const user = JSON.parse(userData);
-        set({ user, token, isAuthenticated: true });
+        set({ user, token, isAuthenticated: true, isGuest: false, guestId: null });
         
-        // Fetch and set wishlist
         const wishlistItems = await apiCall('/api/wishlist');
         if (Array.isArray(wishlistItems)) {
           const validWishlistProducts = wishlistItems
-            .filter(item => item && item.product) // Filter out null/undefined items and items with no product
+            .filter(item => item && item.product)
             .map(item => item.product);
           useWishlistStore.getState().setWishlist(validWishlistProducts);
         }
+      } else {
+        await get().initGuestUser();
       }
     } catch (error) {
       console.error('Error loading user:', error);
+      await get().initGuestUser(); // Fallback to guest session on error
     } finally {
       set({ isLoading: false });
     }

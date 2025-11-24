@@ -21,14 +21,21 @@ import { rankItems } from '../../src/lib/recommender';
 import type { Item } from '../../src/types';
 import { mapProductsToItems } from '../../src/utils/productMapping';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
+import SearchLoadingState from '../../src/components/search/LoadingState';
+import { useCacheStore } from '../../src/state/cache';
+import { formatPrice } from '../../src/utils/formatting';
 
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<Item[]>([]);
   const [trending, setTrending] = useState<Item[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  
+  const { categories: cachedCategories, brands: cachedBrands, setCategories: setCachedCategories, setBrands: setCachedBrands } = useCacheStore();
+  
+  const [brands, setBrands] = useState<string[]>(cachedBrands.data || []);
+  const [categories, setCategories] = useState<string[]>(cachedCategories.data || []);
   const [colors, setColors] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<Item[]>([]);
   const [recentSearches, setRecentSearches] = useState<{ query: string; image: string }[]>([]);
@@ -39,7 +46,8 @@ export default function SearchScreen() {
   const [maxPrice, setMaxPrice] = useState('');
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   
   const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null);
@@ -51,13 +59,34 @@ export default function SearchScreen() {
   }, []);
 
   const fetchInitialData = async () => {
-    setLoading(true);
     try {
+      const now = Date.now();
+      
+      const productsPromise = apiCall('/api/products?limit=20');
+
+      const brandsPromise = 
+        cachedBrands.timestamp && now - cachedBrands.timestamp < CACHE_DURATION
+        ? Promise.resolve(cachedBrands.data)
+        : apiCall('/api/products/brands').then(data => {
+            if(Array.isArray(data)) setCachedBrands(data);
+            return data;
+          });
+      
+      const categoriesPromise =
+        cachedCategories.timestamp && now - cachedCategories.timestamp < CACHE_DURATION
+        ? Promise.resolve(cachedCategories.data)
+        : apiCall('/api/products/categories').then(data => {
+            if(Array.isArray(data)) setCachedCategories(data);
+            return data;
+          });
+
+      const colorsPromise = apiCall('/api/products/colors');
+
       const [products, fetchedBrands, fetchedCategories, fetchedColors] = await Promise.all([
-        apiCall('/api/products?limit=20'),
-        apiCall('/api/products/brands'),
-        apiCall('/api/products/categories'),
-        apiCall('/api/products/colors'),
+        productsPromise,
+        brandsPromise,
+        categoriesPromise,
+        colorsPromise,
       ]);
 
       if (Array.isArray(products)) {
@@ -70,11 +99,11 @@ export default function SearchScreen() {
       if (Array.isArray(fetchedColors)) setColors(fetchedColors);
 
     } catch (error) { console.error("Failed to fetch initial data:", error); }
-    finally { setLoading(false); }
+    finally { setInitialLoading(false); }
   };
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    setIsSearching(true);
     setResults([]);
     let endpoint = '/api/products?';
     const params = new URLSearchParams();
@@ -100,7 +129,7 @@ export default function SearchScreen() {
         });
       }
     } catch (error) { console.error("Failed to fetch data:", error); } 
-    finally { setLoading(false); }
+    finally { setIsSearching(false); }
   }, [searchQuery, selectedBrand, selectedCategory, selectedColor, minPrice, maxPrice]);
 
   const handleSearchChange = (query: string) => {
@@ -131,7 +160,7 @@ export default function SearchScreen() {
       <Image source={{ uri: item.image }} style={large ? styles.largeProductImage : styles.productImage} />
       <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
       <Text style={styles.productBrand} numberOfLines={1}>{item.brand}</Text>
-      <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
+      <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
     </Pressable>
   );
   
@@ -201,6 +230,10 @@ export default function SearchScreen() {
     </Modal>
   );
 
+  if (initialLoading) {
+    return <SearchLoadingState />;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -234,7 +267,7 @@ export default function SearchScreen() {
         ]}
         keyExtractor={(item) => item.type}
         renderItem={({ item }) => {
-          if (loading && (item.type === 'search-results')) {
+          if (isSearching && (item.type === 'search-results')) {
             return <ActivityIndicator size="large" style={{marginTop: 50}} />;
           }
 

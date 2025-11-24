@@ -8,7 +8,7 @@ const { protect } = require('../middleware/auth');
 // @access  Private
 router.put('/preferences', protect, async (req, res) => {
   try {
-    const { categories, colors, brands } = req.body;
+    const { currency, categories, colors, brands } = req.body;
 
     const user = await User.findById(req.user.id);
 
@@ -18,6 +18,7 @@ router.put('/preferences', protect, async (req, res) => {
 
     user.preferences = {
       ...user.preferences,
+      currency: currency || user.preferences.currency,
       categories: categories || user.preferences.categories,
       colors: colors || user.preferences.colors,
       brands: brands || user.preferences.brands,

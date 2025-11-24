@@ -11,7 +11,7 @@ import { useCustomRouter } from '../src/hooks/useCustomRouter';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const { isAuthenticated, user, loadUser } = useAuthStore();
+  const { isAuthenticated, isGuest, user, loadUser } = useAuthStore();
   const [appIsReady, setAppIsReady] = React.useState(false);
   const router = useCustomRouter();
 
@@ -46,11 +46,13 @@ export default function RootLayout() {
         } else {
           router.replace('/onboarding');
         }
+      } else if (isGuest) {
+        router.replace('/(tabs)/home');
       } else {
         router.replace('/login');
       }
     }
-  }, [isAuthenticated, user, appIsReady]);
+  }, [isAuthenticated, isGuest, user, appIsReady]);
 
 
   if (!appIsReady) {

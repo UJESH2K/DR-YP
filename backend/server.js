@@ -16,6 +16,7 @@ const paymentRoutes = require('./src/routes/payments');
 const userRoutes = require('./src/routes/users');
 const uploadRoutes = require('./src/routes/upload'); // Import the new upload route
 const analyticsRoutes = require('./src/routes/analytics'); // Import analytics routes
+const vendorAnalyticsRoutes = require('./src/routes/analytics/vendor');
 
 const app = express();
 
@@ -24,7 +25,7 @@ const app = express();
 app.use(cors({
   origin: '*', // Allow all origins
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allow all methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow specific headers
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-guest-id'],
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -60,6 +61,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes); // Use the upload route
 app.use('/api/analytics', analyticsRoutes); // Use the analytics route
+app.use('/api/analytics', vendorAnalyticsRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars

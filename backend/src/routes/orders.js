@@ -2,22 +2,31 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
-const { protect } = require('../middleware/auth');
+const { identifyUser, protect } = require('../middleware/auth');
 const router = express.Router();
 
 // @route   POST /api/orders
 // @desc    Create a new order (or multiple if items from different vendors)
-// @access  Private
-router.post('/', protect, async (req, res, next) => {
+// @access  Public / Private
+router.post('/', identifyUser, async (req, res, next) => {
   try {
     const { items, shippingAddress } = req.body;
+    const userId = req.user ? req.user._id : null;
+    const guestId = req.guestId;
+
+    if (!userId && !guestId) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+    
     if (!items || items.length === 0) return res.status(400).json({ message: 'No items in order' });
+    
     const productIds = items.map(item => item.productId);
     const productsInCart = await Product.find({ '_id': { $in: productIds } }).select('vendor');
     const productVendorMap = productsInCart.reduce((acc, product) => {
       acc[product._id.toString()] = product.vendor;
       return acc;
     }, {});
+    
     const ordersByVendor = items.reduce((acc, item) => {
       const vendorId = productVendorMap[item.productId];
       if (vendorId) {
@@ -26,12 +35,14 @@ router.post('/', protect, async (req, res, next) => {
       }
       return acc;
     }, {});
+
     const createdOrders = [];
     for (const vendorId of Object.keys(ordersByVendor)) {
         const vendorItems = ordersByVendor[vendorId];
         const totalAmount = vendorItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const order = new Order({
-            user: req.user._id,
+            user: userId,
+            guestId: guestId,
             items: vendorItems.map(item => ({
                 product: item.productId,
                 quantity: item.quantity,
@@ -46,6 +57,7 @@ router.post('/', protect, async (req, res, next) => {
         });
         createdOrders.push(order.save());
     }
+    
     const savedOrders = await Promise.all(createdOrders);
     res.status(201).json(savedOrders);
   } catch (error) { 
@@ -55,11 +67,15 @@ router.post('/', protect, async (req, res, next) => {
 });
 
 // @route   GET /api/orders/mine
-// @desc    Get logged in user's orders
-// @access  Private
-router.get('/mine', protect, async (req, res, next) => {
+// @desc    Get logged in user's or guest's orders
+// @access  Public / Private
+router.get('/mine', identifyUser, async (req, res, next) => {
   try {
-    const orders = await Order.find({ user: req.user._id })
+    const query = req.user ? { user: req.user._id } : { guestId: req.guestId };
+    if (!req.user && !req.guestId) {
+      return res.json([]);
+    }
+    const orders = await Order.find(query)
       .populate('items.product', 'name images brand')
       .sort({ createdAt: -1 });
     res.json(orders);

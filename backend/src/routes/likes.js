@@ -1,16 +1,20 @@
 const express = require('express');
 const Like = require('../models/Like');
 const Product = require('../models/Product');
-const { protect } = require('../middleware/auth'); // Ensure protect is imported for auth
+const { identifyUser } = require('../middleware/auth'); // Use identifyUser
 const mongoose = require('mongoose');
 const router = express.Router();
 
 // @route   GET /api/likes
-// @desc    Get all products liked by the current user
-// @access  Private
-router.get('/', protect, async (req, res, next) => {
+// @desc    Get all products liked by the current user or guest
+// @access  Public / Private
+router.get('/', identifyUser, async (req, res, next) => {
   try {
-    const likes = await Like.find({ user: req.user._id }).populate('product');
+    const query = req.user ? { user: req.user._id } : { guestId: req.guestId };
+    if (!req.user && !req.guestId) {
+      return res.json([]); // No user or guest, return empty array
+    }
+    const likes = await Like.find(query).populate('product');
     res.json(likes.map(l => l.product));
   } catch (error) { 
     next(error); 
@@ -19,31 +23,33 @@ router.get('/', protect, async (req, res, next) => {
 
 // @route   POST /api/likes/:productId
 // @desc    Like a product
-// @access  Private
-router.post('/:productId', protect, async (req, res, next) => {
+// @access  Public / Private
+router.post('/:productId', identifyUser, async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const { _id: userId } = req.user;
+    const userId = req.user ? req.user._id : null;
+    const guestId = req.guestId;
 
-    // Validate the product ID
+    if (!userId && !guestId) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: `Invalid product ID: ${productId}` });
     }
 
-    // Check if the product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Check if the like already exists
-    const existingLike = await Like.findOne({ user: userId, product: productId });
+    const query = userId ? { user: userId, product: productId } : { guestId, product: productId };
+    const existingLike = await Like.findOne(query);
     if (existingLike) {
       return res.status(200).json({ success: true, message: 'Product already liked.' });
     }
 
-    // Create the like and update the product's like count
-    await Like.create({ user: userId, product: productId });
+    await Like.create({ ...query, user: userId }); // user can be null
     await Product.findByIdAndUpdate(productId, { $inc: { likes: 1 } });
     
     res.status(201).json({ success: true, message: `Successfully liked ${productId}` });
@@ -54,21 +60,24 @@ router.post('/:productId', protect, async (req, res, next) => {
 
 // @route   DELETE /api/likes/:productId
 // @desc    Unlike a product
-// @access  Private
-router.delete('/:productId', protect, async (req, res, next) => {
+// @access  Public / Private
+router.delete('/:productId', identifyUser, async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const { _id: userId } = req.user;
+    const userId = req.user ? req.user._id : null;
+    const guestId = req.guestId;
 
-    // Validate the product ID
+    if (!userId && !guestId) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+    
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: `Invalid product ID: ${productId}` });
     }
 
-    // Find and delete the like
-    const like = await Like.findOneAndDelete({ user: userId, product: productId });
+    const query = userId ? { user: userId, product: productId } : { guestId, product: productId };
+    const like = await Like.findOneAndDelete(query);
 
-    // If a like was deleted, decrement the product's like count
     if (like) {
       await Product.findByIdAndUpdate(productId, { $inc: { likes: -1 } });
     }
