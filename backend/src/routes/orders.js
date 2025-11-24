@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
-const Vendor = require('../models/Vendor'); // Import Vendor model
 const { protect } = require('../middleware/auth');
 const router = express.Router();
 
@@ -33,12 +32,12 @@ router.post('/', protect, async (req, res, next) => {
         const totalAmount = vendorItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const order = new Order({
             user: req.user._id,
-            vendor: vendorId, // Add vendorId here
             items: vendorItems.map(item => ({
                 product: item.productId,
                 quantity: item.quantity,
-                price: item.price, // Ensure price is mapped
-                size: item.options?.size, // Example of mapping an option
+                price: item.price,
+                size: item.options?.size,
+                vendor: productVendorMap[item.productId],
             })),
             totalAmount,
             shippingAddress,
@@ -75,11 +74,7 @@ router.get('/vendor', protect, async (req, res, next) => {
         if (req.user.role !== 'vendor') {
             return res.status(403).json({ message: 'Forbidden: Only vendors can access this route' });
         }
-        const vendor = await Vendor.findOne({ owner: req.user._id });
-        if (!vendor) {
-            return res.status(404).json({ message: 'Vendor profile not found for this user' });
-        }
-        const orders = await Order.find({ vendor: vendor._id })
+        const orders = await Order.find({ 'items.vendor': req.user._id })
             .populate('user', 'name email')
             .populate('items.product', 'name sku')
             .sort({ createdAt: -1 });

@@ -23,7 +23,7 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
       if (options.body) {
-        console.log(`📤 Sending data:`, JSON.parse(options.body as string));
+        console.log(`📤 Sending data:`, options.body);
       }
     }
 

@@ -3,18 +3,29 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { apiCall } from '../../src/lib/api';
+import { useAuthStore } from '../../src/state/auth';
 
 export default function VendorOrdersScreen() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuthStore();
 
   const fetchOrders = useCallback(async () => {
+    if (user?.role !== 'vendor') {
+      setError("You are not authorized to view this page.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await apiCall('/api/orders/vendor');
       if (Array.isArray(data)) {
-        setOrders(data);
+        const vendorOrders = data.map(order => {
+          const vendorItems = order.items.filter(item => item.vendor.toString() === user._id);
+          return { ...order, items: vendorItems };
+        }).filter(order => order.items.length > 0);
+        setOrders(vendorOrders);
       } else {
         throw new Error(data?.message || 'Failed to fetch orders');
       }
@@ -23,7 +34,7 @@ export default function VendorOrdersScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
