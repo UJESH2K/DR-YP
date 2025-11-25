@@ -252,8 +252,8 @@ const styles = StyleSheet.create({
         zIndex: 1, 
         backgroundColor: 'transparent',
     },
-    imageCarousel: { height: screenWidth }, // Make image a square
-    productImage: { width: screenWidth, height: screenWidth, resizeMode: 'cover' },
+    imageCarousel: { height: screenWidth * 1.2 }, 
+    productImage: { width: screenWidth, height: screenWidth * 1.2, resizeMode: 'cover' },
     detailsContainer: { padding: 20 },
     brand: { fontSize: 16, color: '#888', marginBottom: 5 },
     name: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },

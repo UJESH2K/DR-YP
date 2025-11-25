@@ -35,6 +35,7 @@ export default function ProfileScreen() {
     { id: 'orders', title: 'My Orders', icon: <MaterialIcons name="local-shipping" size={22} color="#000" />, onPress: () => router.push('/account/orders') },
     { id: 'addresses', title: 'Addresses', icon: <Ionicons name="location-outline" size={22} color="#000" />, onPress: () => router.push('/account/addresses') },
     { id: 'payment', title: 'Payment Methods', icon: <Ionicons name="card-outline" size={22} color="#000" />, onPress: () => router.push('/account/payment') },
+    { id: 'settings', title: 'Settings', icon: <Feather name="settings" size={22} color="#000" />, onPress: () => router.push('/account/settings') },
     { id: 'style', title: 'Style Preference', icon: <Ionicons name="shirt-outline" size={22} color="#000" />, onPress: () => router.push('/account/style') },
     { id: 'notifications', title: 'Notifications', icon: <Ionicons name="notifications-outline" size={22} color="#000" />, onPress: () => router.push('/account/notifications') },
     { id: 'help', title: 'Help & Support', icon: <Feather name="help-circle" size={22} color="#000" />, onPress: () => router.push('/account/help') },

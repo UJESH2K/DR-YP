@@ -14,7 +14,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["nativewind/types", "expo-router"]
+    "types": ["nativewind/types", "expo-router"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "extends": "expo/tsconfig.base"
 }

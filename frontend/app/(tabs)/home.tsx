@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, StatusBar, Pressable } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, StyleSheet, StatusBar, Pressable, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useHomeScreenData } from '../../src/hooks/useHomeScreenData';
@@ -38,6 +38,23 @@ export default function HomeScreen() {
   };
   
   const swipeAnimations = useSwipeAnimations(items, showDetailsWithAnimation);
+  const undoOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (swipeAnimations.canUndo) {
+      Animated.timing(undoOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(undoOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [swipeAnimations.canUndo]);
 
   if (loading) {
     return <LoadingState />;
@@ -89,13 +106,14 @@ export default function HomeScreen() {
         )}
       </View>
       
-      {swipeAnimations.canUndo && (
+      <Animated.View style={{ opacity: undoOpacity }}>
         <Pressable 
           style={[
             styles.undoButton, 
             swipeAnimations.lastSwipeDirection === 'left' ? { left: 30 } : { right: 30 }
           ]} 
           onPress={swipeAnimations.undoSwipe}
+          disabled={!swipeAnimations.canUndo}
         >
           <Ionicons 
             name={swipeAnimations.lastSwipeDirection === 'left' ? "arrow-redo" : "arrow-undo"} 
@@ -103,6 +121,14 @@ export default function HomeScreen() {
             color="black" 
           />
         </Pressable>
+      </Animated.View>
+
+      {selectedProductId && (
+        <ProductDetailModal
+          productId={selectedProductId}
+          isVisible={isModalVisible}
+          onClose={hideDetailsWithAnimation}
+        />
       )}
 
       {selectedProductId && (
@@ -121,7 +147,7 @@ const styles = StyleSheet.create({
   cardStack: { flex: 1, alignItems: 'center', paddingTop: 20 },
   undoButton: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 0,
     width: 60,
     height: 60,
     borderRadius: 30,

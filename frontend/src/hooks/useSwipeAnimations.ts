@@ -20,8 +20,18 @@ export function useSwipeAnimations(
   const position = useRef(new Animated.ValueXY()).current;
   const nextCardAnimation = useRef(new Animated.Value(0.9)).current;
   
+  const undoTimer = useRef<NodeJS.Timeout | null>(null);
+  
   const { user } = useAuthStore();
   const pushInteraction = useInteractionStore((s) => s.pushInteraction);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimer.current) {
+        clearTimeout(undoTimer.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -47,6 +57,14 @@ export function useSwipeAnimations(
     sendInteraction(decision, currentItem.id, user?._id);
     updateModel(decision, currentItem);
 
+    if (undoTimer.current) {
+      clearTimeout(undoTimer.current);
+    }
+    undoTimer.current = setTimeout(() => {
+      setCanUndo(false);
+      undoTimer.current = null;
+    }, 3000);
+
     Animated.timing(nextCardAnimation, {
       toValue: 1,
       duration: 300,
@@ -67,6 +85,11 @@ export function useSwipeAnimations(
 
   const undoSwipe = useCallback(() => {
     if (!canUndo) return;
+
+    if (undoTimer.current) {
+      clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
 
     setIsAnimating(true);
     setCanUndo(false);
