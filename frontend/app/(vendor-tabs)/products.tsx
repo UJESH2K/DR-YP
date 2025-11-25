@@ -42,12 +42,12 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
     basePrice: '',
   });
   
-  const [variants, setVariants] = useState([{ color: '', sizes: '', stock: {}, images: [] }]);
+  const [variants, setVariants] = useState([{ color: '', sizes: '', stock: {}, images: [], price: '' }]);
   const [isUploading, setIsUploading] = useState(false);
   const { token } = useAuthStore();
 
   const addVariant = () => {
-    setVariants(prev => [...prev, { color: '', sizes: '', stock: {}, images: [] }]);
+    setVariants(prev => [...prev, { color: '', sizes: '', stock: {}, images: [], price: '' }]);
   };
 
   const handleVariantImagePick = async (variantIndex) => {
@@ -154,7 +154,7 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
         const newVariant = {
           options: { Color: variant.color, Size: size },
           stock: parseInt(variant.stock[size] || '0', 10),
-          price: undefined,
+          price: parseFloat(variant.price || product.basePrice),
           images: variant.images,
         };
         productData.variants.push(newVariant);
@@ -193,6 +193,7 @@ const AddProductForm = ({ visible, onClose, onProductAdded }) => {
               <Text style={formStyles.subtitle}>Color Variant {index + 1}</Text>
               <TextInput style={formStyles.input} placeholder="Color Name (e.g., Red)" value={variant.color} onChangeText={v => handleVariantChange(index, 'color', v)} />
               <TextInput style={formStyles.input} placeholder="Sizes (comma-separated, e.g., S,M,L)" value={variant.sizes} onChangeText={v => handleVariantChange(index, 'sizes', v)} />
+              <TextInput style={formStyles.input} placeholder="Variant Price (e.g., 599.99)" value={variant.price} onChangeText={v => handleVariantChange(index, 'price', v)} keyboardType="numeric" />
               
               <Text style={formStyles.stockTitle}>Stock for each size:</Text>
               {variant.sizes.split(',').map(s => s.trim()).filter(Boolean).map(size => (

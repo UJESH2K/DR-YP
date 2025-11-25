@@ -22,9 +22,13 @@ export default function VendorOrdersScreen() {
       const data = await apiCall('/api/orders/vendor');
       if (Array.isArray(data)) {
         const vendorOrders = data.map(order => {
-          const vendorItems = order.items.filter(item => item.vendor.toString() === user._id);
-          return { ...order, items: vendorItems };
-        }).filter(order => order.items.length > 0);
+          // Ensure we only process orders that have items for this vendor
+          const vendorItems = order.items.filter(item => item.vendor?.toString() === user._id);
+          if (vendorItems.length > 0) {
+            return { ...order, items: vendorItems };
+          }
+          return null;
+        }).filter(order => order !== null); // Filter out null orders
         setOrders(vendorOrders);
       } else {
         throw new Error(data?.message || 'Failed to fetch orders');
@@ -48,14 +52,25 @@ export default function VendorOrdersScreen() {
         <Text style={styles.orderNumber}>Order #{item.orderNumber}</Text>
         <Text style={styles.orderDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
       </View>
+
+      {/* This is the fix: check if item.user exists before trying to access its properties */}
+      <View style={styles.customerInfo}>
+        <Text style={styles.customerName}>
+          Customer: {item.user ? item.user.name : 'Guest User'}
+        </Text>
+        {item.user?.email && <Text style={styles.customerEmail}>{item.user.email}</Text>}
+      </View>
+
       <View style={styles.cardBody}>
+        <Text style={styles.itemsHeader}>Items:</Text>
         {item.items.map(productItem => (
-          <View key={productItem.product._id} style={styles.productItem}>
-            <Text>{productItem.product.name} (x{productItem.quantity})</Text>
-            <Text>${(productItem.price * productItem.quantity).toFixed(2)}</Text>
+          <View key={productItem.product?._id || Math.random()} style={styles.productItem}>
+            <Text style={styles.productName}>{productItem.product?.name || 'Product not found'} (x{productItem.quantity})</Text>
+            <Text style={styles.productPrice}>${(productItem.price * productItem.quantity).toFixed(2)}</Text>
           </View>
         ))}
       </View>
+
       <View style={styles.cardFooter}>
         <Text style={styles.totalAmount}>Total: ${item.totalAmount.toFixed(2)}</Text>
         <Text style={[styles.status, styles[`status_${item.status}`]]}>{item.status}</Text>
@@ -95,55 +110,92 @@ export default function VendorOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
   header: { padding: 24, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
   title: { fontSize: 28, fontWeight: 'bold' },
   list: { padding: 16 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  retryText: { color: 'blue', marginTop: 10 },
+  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#666' },
+
   orderCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 10,
+    marginBottom: 12,
   },
-  orderNumber: { fontWeight: 'bold' },
-  orderDate: { color: '#666' },
-  cardBody: { marginVertical: 10 },
+  orderNumber: { fontWeight: 'bold', fontSize: 16 },
+  orderDate: { color: '#666', fontSize: 14 },
+  
+  customerInfo: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#f0f0f0',
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  customerName: {
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  customerEmail: {
+    color: '#3498db',
+    fontSize: 14,
+  },
+
+  cardBody: { marginBottom: 10 },
+  itemsHeader: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+    fontSize: 14,
+    color: '#555',
+  },
   productItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 6,
+    marginLeft: 10,
   },
+  productName: {
+    color: '#333',
+    flexShrink: 1,
+  },
+  productPrice: {
+    fontWeight: '500',
+  },
+
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#f0f0f0',
     paddingTop: 10,
   },
   totalAmount: { fontWeight: 'bold', fontSize: 16 },
   status: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    overflow: 'hidden',
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: 'bold',
     fontSize: 12,
     textTransform: 'uppercase',
   },
   status_pending: { backgroundColor: '#f0ad4e' },
   status_delivered: { backgroundColor: '#5cb85c' },
   status_cancelled: { backgroundColor: '#d9534f' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  retryText: { color: 'blue', marginTop: 10 },
-  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#666' },
 });

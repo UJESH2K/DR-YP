@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiCall } from '../lib/api';
+// import { apiCall } from '../lib/api'; // REMOVED to break cycle
 import { useToastStore } from './toast';
 import { useWishlistStore } from './wishlist'; // Import the wishlist store
 
@@ -59,6 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   register: async (name, email, password) => {
+    const { apiCall } = require('../lib/api'); // LAZY REQUIRE
     set({ isLoading: true });
     try {
       const guestId = get().guestId;
@@ -91,6 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (email, password) => {
+    const { apiCall } = require('../lib/api'); // LAZY REQUIRE
     set({ isLoading: true });
     try {
       const guestId = get().guestId;
@@ -145,6 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loadUser: async () => {
+    const { apiCall } = require('../lib/api'); // LAZY REQUIRE
     set({ isLoading: true });
     try {
       const token = await AsyncStorage.getItem('user_token');

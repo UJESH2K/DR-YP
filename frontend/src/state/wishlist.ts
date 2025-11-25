@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiCall } from '../lib/api';
+// import { apiCall } from '../lib/api'; // REMOVED to break cycle
 import { Product } from '../types'; // Assuming you have a Product type defined
 
 interface WishlistItem extends Product {}
@@ -17,6 +17,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
   setWishlist: (items) => set({ items }),
   addToWishlist: async (product) => {
     try {
+      const { apiCall } = require('../lib/api'); // LAZY REQUIRE
       const existingItem = get().items.find(item => item._id === product._id);
       if (existingItem) return; // Don't add if it's already there
 
@@ -31,6 +32,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
     }
   },
   removeFromWishlist: async (productId) => {
+    const { apiCall } = require('../lib/api'); // LAZY REQUIRE
     const originalItems = get().items;
     try {
       set(state => ({ items: state.items.filter(item => item._id !== productId) }));
