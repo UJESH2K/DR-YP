@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { ITEMS, type Item } from '../data/items'
+import { type Item } from '../types';
 
 // Styl Spec — Recommendation Engine
 // - Weighted events with timestamp decay

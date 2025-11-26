@@ -1,31 +1,62 @@
-// Simple API service to send data to backend without changing frontend structure
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '../state/auth';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 // Log the API URL being used for debugging
 console.log('🌐 API Base URL:', API_BASE_URL);
 
-// Simple fetch wrapper with error handling
-async function apiCall(endpoint: string, options: RequestInit = {}) {
+// Simple fetch wrapper with error handling and auth token injection
+export async function apiCall(endpoint: string, options: RequestInit = {}) {
   try {
     const fullUrl = `${API_BASE_URL}${endpoint}`;
     console.log(`🚀 FRONTEND API CALL: ${options.method || 'GET'} ${fullUrl}`);
-    if (options.body) {
-      console.log(`📤 Sending data:`, JSON.parse(options.body as string));
+
+    const { token, isGuest, guestId } = useAuthStore.getState();
+    console.log(`🔑 Auth Token:`, token ? 'Present' : 'Missing');
+    
+    const headers = { ...options.headers };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    } else if (isGuest && guestId) {
+      headers['x-guest-id'] = guestId;
+    }
+
+    let body = options.body;
+
+    // Don't set Content-Type for FormData, and don't stringify the body
+    if (!(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+      if (body) {
+        console.log(`📤 Sending data:`, body);
+      }
     }
 
     const response = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
+      body,
+      headers,
     });
 
-    const data = await response.json();
+    let data;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.indexOf('application/json') !== -1) {
+      data = await response.json();
+    } else {
+      const textData = await response.text();
+      // For non-JSON, we can't assume a { message: ... } structure
+      // If the request was not ok, we create an error structure
+      if (!response.ok) {
+          console.warn(`❌ API call failed with non-JSON response: ${endpoint}`, response.status, textData);
+          return { message: textData || 'An unknown error occurred on the server.' };
+      }
+      // If the request was ok but not JSON, we return it as content
+      data = { content: textData };
+    }
     
     if (!response.ok) {
       console.warn(`❌ API call failed: ${endpoint}`, response.status, data);
-      return null;
+      return data; // Return error data from server
     }
 
     console.log(`✅ API success: ${endpoint}`, data);
@@ -33,19 +64,20 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   } catch (error) {
     console.error(`❌ API error: ${endpoint}`, error);
     console.error(`❌ Full URL was: ${API_BASE_URL}${endpoint}`);
-    console.error(`❌ Error details:`, error.message, error.code);
-    return null;
+    return { message: error.message || 'An unexpected error occurred.' };
   }
 }
 
 // Send user interaction to backend (like, dislike, cart)
-export async function sendInteraction(action: 'like' | 'dislike' | 'cart', itemId: string, userId?: string) {
-  const payload = {
-    userId: userId || 'anonymous_user', // fallback for now
+export async function sendInteraction(action: 'like' | 'dislike', itemId: string) {
+  const payload: { [key: string]: any } = {
     productId: itemId,
-    action,
-    timestamp: new Date().toISOString(),
   };
+  
+  const { isGuest, guestId } = useAuthStore.getState();
+  if (isGuest && guestId) {
+    payload.guestId = guestId;
+  }
 
   if (action === 'like') {
     return apiCall(`/api/likes/${itemId}`, {
@@ -60,30 +92,6 @@ export async function sendInteraction(action: 'like' | 'dislike' | 'cart', itemI
       body: JSON.stringify(payload),
     });
   }
-
-  if (action === 'cart') {
-    // Send to orders endpoint for cart actions
-    return apiCall('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...payload,
-        items: [{ productId: itemId, quantity: 1 }],
-        status: 'cart',
-      }),
-    });
-  }
-}
-
-// Send user authentication to backend
-export async function sendAuth(email: string, name: string) {
-  return apiCall('/api/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({
-      email,
-      name,
-      password: 'temp_password', // You can improve this later
-    }),
-  });
 }
 
 // Fetch products from backend (optional - can be used to replace static data later)

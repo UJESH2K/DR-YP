@@ -5,11 +5,12 @@ const OrderItemSchema = new mongoose.Schema({
   quantity: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true },
   size: { type: String, required: false },
+  vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { _id: false });
 
 const OrderSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.Mixed, required: true }, // Allow both ObjectId and string for anonymous users
-  vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  guestId: { type: String, required: false, index: true },
   items: { type: [OrderItemSchema], required: true },
   totalAmount: { type: Number, required: true },
   status: { 
@@ -22,7 +23,14 @@ const OrderSchema = new mongoose.Schema({
     enum: ['pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded'],
     default: 'pending'
   },
-  shippingAddress: { type: String, required: true },
+  shippingAddress: {
+    name: { type: String, required: true },
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    zipCode: { type: String, required: true },
+    country: { type: String, required: true },
+  },
   orderNumber: { type: String, unique: true, sparse: true }, // Unique order number, sparse allows nulls
   razorpayOrderId: { type: String },
   razorpayPaymentId: { type: String },
@@ -30,5 +38,3 @@ const OrderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);
-
-

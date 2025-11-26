@@ -9,10 +9,10 @@ import {
   Switch,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useCustomRouter } from '../../src/hooks/useCustomRouter'
 
 export default function NotificationsScreen() {
-  const router = useRouter()
+  const router = useCustomRouter()
 
   const [settings, setSettings] = useState({
     orderUpdates: true,

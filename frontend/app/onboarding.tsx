@@ -1,343 +1,421 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  Pressable, 
-  FlatList, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  StyleSheet,
   StatusBar,
   Dimensions,
-  Platform,
   ActivityIndicator,
-  Alert
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CATEGORIES } from '../src/data/categories';
+import { useCustomRouter } from '../src/hooks/useCustomRouter';
+import { useAuthStore } from '../src/state/auth';
+import { useSettingsStore } from '../src/state/settings';
+import { useCacheStore } from '../src/state/cache';
+import { apiCall } from '../src/lib/api';
+import SingleSelectDropdown from '../src/components/SingleSelectDropdown';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+const countryCurrencyOptions = [
+  { label: '🇮🇳 India (INR)', value: 'INR' },
+  { label: '🇺🇸 United States (USD)', value: 'USD' },
+  { label: '🇪🇺 Europe (EUR)', value: 'EUR' },
+  { label: '🇬🇧 United Kingdom (GBP)', value: 'GBP' },
+  { label: '🇯🇵 Japan (JPY)', value: 'JPY' },
+  { label: '🇨🇦 Canada (CAD)', value: 'CAD' },
+  { label: '🇦🇺 Australia (AUD)', value: 'AUD' },
+];
+
+const colorOptions = [
+  { id: 'black', name: 'Black', color: '#000000' },
+  { id: 'white', name: 'White', color: '#FFFFFF' },
+  { id: 'blue', name: 'Blue', color: '#2196F3' },
+  { id: 'red', name: 'Red', color: '#F44336' },
+  { id: 'green', name: 'Green', color: '#4CAF50' },
+  { id: 'pink', name: 'Pink', color: '#E91E63' },
+  { id: 'gray', name: 'Gray', color: '#9E9E9E' },
+  { id: 'brown', name: 'Brown', color: '#795548' },
+];
+
+type OnboardingStep = 'currency' | 'categories' | 'colors' | 'brands';
 
 export default function Onboarding() {
-  const router = useRouter();
-  const [selected, setSelected] = useState<string[]>([]);
+  const router = useCustomRouter();
+  const { user, updateUser } = useAuthStore();
+  const { currency, setCurrency } = useSettingsStore();
+  const { categories: cachedCategories, brands: cachedBrands, setCategories: setCachedCategories, setBrands: setCachedBrands } = useCacheStore();
+
+  const [step, setStep] = useState<OnboardingStep>('currency');
+
+  const [categories, setCategories] = useState<string[]>(cachedCategories.data || []);
+  const [brands, setBrands] = useState<string[]>(cachedBrands.data || []);
+  const [isFetching, setIsFetching] = useState(true);
+
+  const [selectedCurrency, setSelectedCurrency] = useState(currency);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(user?.preferences?.categories || []);
+  const [selectedColors, setSelectedColors] = useState<string[]>(user?.preferences?.colors || []);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(user?.preferences?.brands || []);
+  
   const [isLoading, setIsLoading] = useState(false);
-  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    console.log('Onboarding screen mounted');
-    // Add a small delay to ensure everything is ready
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, Platform.OS === 'android' ? 500 : 100);
+    const fetchPreferenceData = async () => {
+      if (!user) return; // Fix race condition
 
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Preload previously saved categories so user can edit preferences
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
+      setIsFetching(true);
       try {
-        const saved = await AsyncStorage.getItem('categories:selected');
-        if (saved && mounted) {
-          const arr = JSON.parse(saved) as string[];
-          if (Array.isArray(arr) && arr.length) setSelected(arr);
-        }
-      } catch (e) {
-        // ignore and keep default empty selection
-      }
-    })();
-    return () => { mounted = false };
-  }, []);
+        const now = Date.now();
+        const categoriesPromise =
+          cachedCategories.timestamp && now - cachedCategories.timestamp < CACHE_DURATION
+            ? Promise.resolve(cachedCategories.data)
+            : apiCall('/api/products/categories').then(data => {
+                if (Array.isArray(data)) setCachedCategories(data);
+                return data;
+              });
 
-  const toggle = (key: string) => {
-    setSelected((prev) =>
-      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
-    );
+        const brandsPromise =
+          cachedBrands.timestamp && now - cachedBrands.timestamp < CACHE_DURATION
+            ? Promise.resolve(cachedBrands.data)
+            : apiCall('/api/products/brands').then(data => {
+                if (Array.isArray(data)) setCachedBrands(data);
+                return data;
+              });
+
+        const [categoriesData, brandsData] = await Promise.all([categoriesPromise, brandsPromise]);
+
+        if (Array.isArray(categoriesData)) setCategories(categoriesData);
+        if (Array.isArray(brandsData)) setBrands(brandsData);
+      } catch (error) {
+        Alert.alert('Error', 'Could not load preference options.');
+      } finally {
+        setIsFetching(false);
+      }
+    };
+    fetchPreferenceData();
+  }, [user]); // Depend on user
+
+  const toggleSelection = (array: string[], setArray: (arr: string[]) => void, item: string) => {
+    setArray(array.includes(item) ? array.filter(i => i !== item) : [...array, item]);
   };
 
-  const continueNext = async () => {
+  const handleNext = () => {
+    if (step === 'currency') setStep('categories');
+    else if (step === 'categories') setStep('colors');
+    else if (step === 'colors') setStep('brands');
+  };
+
+  const handleBack = () => {
+    if (step === 'brands') setStep('colors');
+    else if (step === 'colors') setStep('categories');
+    else if (step === 'categories') setStep('currency');
+  };
+
+  const finishOnboarding = async () => {
     if (isLoading) return;
     
     setIsLoading(true);
     try {
-      console.log('Selected categories before saving:', selected);
-      
-      // Add timeout for AsyncStorage operation
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Save operation timeout')), 5000)
-      );
-      
-      const savePromise = AsyncStorage.setItem('categories:selected', JSON.stringify(selected));
-      await Promise.race([savePromise, timeoutPromise]);
-      
-      console.log('Categories saved successfully');
-      console.log('Navigating to deck...');
-      
-      // Add small delay before navigation for Android
-      setTimeout(() => {
-        router.replace('/deck');
-      }, Platform.OS === 'android' ? 200 : 0);
+      const preferences = {
+        currency: selectedCurrency,
+        categories: selectedCategories,
+        colors: selectedColors,
+        brands: selectedBrands,
+      };
+
+      const updatedUser = await apiCall('/api/users/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(preferences),
+      });
+
+      if (updatedUser) {
+        await updateUser(updatedUser);
+        setCurrency(selectedCurrency);
+        router.replace('/(tabs)/home');
+      } else {
+        throw new Error('Failed to save preferences');
+      }
       
     } catch (error) {
-      console.error('Error saving categories:', error);
+      console.error('Error saving preferences:', error);
+      Alert.alert('Error', 'Could not save your preferences. Please try again.', [{ text: 'OK' }]);
+    } finally {
       setIsLoading(false);
-      
-      // Show alert but allow navigation anyway
-      Alert.alert(
-        'Warning', 
-        'Could not save preferences, but you can continue.',
-        [
-          {
-            text: 'Continue Anyway',
-            onPress: () => {
-              setTimeout(() => {
-                router.replace('/deck');
-              }, 100);
-            }
-          }
-        ]
-      );
     }
   };
 
-  if (!isReady) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000000" />
-          <Text style={styles.loadingText}>Setting up...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const renderPreferenceScreen = () => {
+    if (isFetching && step !== 'currency') {
+      return <ActivityIndicator size="large" style={styles.centered} />;
+    }
 
-  const renderCategoryItem = ({ item }: { item: { key: string; label: string } }) => (
-    <Pressable
-      onPress={() => toggle(item.key)}
-      style={[
-        styles.categoryItem,
-        selected.includes(item.key) ? styles.selected : styles.unselected
-      ]}
-    >
-      <View style={styles.categoryContent}>
-        <Text style={[
-          styles.categoryText,
-          selected.includes(item.key) ? styles.selectedText : styles.unselectedText
-        ]}>
-          {item.label}
-        </Text>
-        {selected.includes(item.key) && (
-          <Text style={styles.checkmark}>✓</Text>
-        )}
-      </View>
-    </Pressable>
-  );
+    let content;
+    switch (step) {
+      case 'currency':
+        content = (
+          <View style={styles.currencyContainer}>
+            <SingleSelectDropdown
+              options={countryCurrencyOptions}
+              selectedValue={selectedCurrency}
+              onSelectionChange={setSelectedCurrency}
+              placeholder="Select your currency"
+            />
+          </View>
+        );
+        break;
+      case 'categories':
+        content = (
+          <FlatList
+            key="categories-list"
+            data={categories}
+            keyExtractor={(item) => item}
+            numColumns={2}
+            contentContainerStyle={styles.grid}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.optionCard, selectedCategories.includes(item) && styles.selectedCard]}
+                onPress={() => toggleSelection(selectedCategories, setSelectedCategories, item)}
+              >
+                <Text style={[styles.optionText, selectedCategories.includes(item) && styles.selectedText]}>
+                  {item}
+                </Text>
+              </Pressable>
+            )}
+          />
+        );
+        break;
+      case 'colors':
+        content = (
+          <FlatList
+            key="colors-list"
+            data={colorOptions}
+            keyExtractor={(item) => item.id}
+            numColumns={4}
+            contentContainerStyle={styles.grid}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.colorOption, { backgroundColor: item.color }, selectedColors.includes(item.id) && styles.selectedColor]}
+                onPress={() => toggleSelection(selectedColors, setSelectedColors, item.id)}
+              >
+                {selectedColors.includes(item.id) && <Text style={styles.checkmark}>✓</Text>}
+              </Pressable>
+            )}
+          />
+        );
+        break;
+      case 'brands':
+        content = (
+          <FlatList
+            key="brands-list"
+            data={brands}
+            keyExtractor={(item) => item}
+            numColumns={2}
+            contentContainerStyle={styles.grid}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.brandOption, selectedBrands.includes(item) && styles.selectedBrand]}
+                onPress={() => toggleSelection(selectedBrands, setSelectedBrands, item)}
+              >
+                <Text style={[styles.brandText, selectedBrands.includes(item) && styles.selectedBrandText]}>
+                  {item}
+                </Text>
+              </Pressable>
+            )}
+          />
+        );
+        break;
+      default:
+        content = null;
+    }
+
+    return (
+      <>
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {step === 'currency' ? 'Select Your Currency' :
+             step === 'categories' ? 'Choose Your Styles' :
+             step === 'colors' ? 'Select Favorite Colors' :
+             'Pick Preferred Brands'}
+          </Text>
+          <Text style={styles.subtitle}>Help us personalize your experience.</Text>
+        </View>
+
+        {content}
+
+        <View style={styles.footer}>
+          {step !== 'currency' && (
+            <Pressable style={styles.backButton} onPress={handleBack}>
+              <Text style={styles.backButtonText}>Back</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={[styles.nextButton, (isLoading || (isFetching && step !== 'currency')) && styles.disabledButton]}
+            onPress={step === 'brands' ? finishOnboarding : handleNext}
+            disabled={isLoading || (isFetching && step !== 'currency')}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.nextButtonText}>
+                {step === 'brands' ? 'Finish' : 'Next'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Welcome to DRYP</Text>
-        <Text style={styles.subtitle}>
-          Choose your style preferences to get personalized recommendations
-        </Text>
-      </View>
-
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
-        <Text style={styles.progressText}>
-          {selected.length} of {CATEGORIES.length} selected
-        </Text>
-        <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { width: `${(selected.length / CATEGORIES.length) * 100}%` }
-            ]} 
-          />
-        </View>
-      </View>
-
-      {/* Categories */}
-      <FlatList
-        data={CATEGORIES}
-        keyExtractor={(item) => item.key}
-        renderItem={renderCategoryItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-      />
-
-      {/* Continue Button */}
-      <View style={styles.bottomContainer}>
-        <Pressable
-          onPress={continueNext}
-          style={[
-            styles.continueButton,
-            selected.length ? styles.continueEnabled : styles.continueDisabled
-          ]}
-          disabled={!selected.length}
-        >
-          <Text style={[
-            styles.continueText,
-            selected.length ? styles.continueEnabledText : styles.continueDisabledText
-          ]}>
-            {selected.length ? 'Start Discovering' : 'Select at least one category'}
-          </Text>
-        </Pressable>
-        
-        {selected.length > 0 && (
-          <Text style={styles.hintText}>
-            You can always change your preferences later
-          </Text>
-        )}
-      </View>
+      {renderPreferenceScreen()}
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    padding: 24,
     alignItems: 'center',
   },
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#000000',
-    textAlign: 'center',
+    color: '#1a1a1a',
     marginBottom: 8,
-    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: '#666666',
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 20,
   },
-  progressContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-  },
-  progressText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#888888',
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#000000',
-    borderRadius: 2,
-  },
-  listContainer: {
+  grid: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
   },
-  row: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
+  currencyContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 40,
   },
-  categoryItem: {
-    width: (SCREEN_WIDTH - 48) / 2,
-    marginBottom: 12,
-    borderRadius: 12,
-    borderWidth: 2,
-    overflow: 'hidden',
-  },
-  selected: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  unselected: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e0e0e0',
-  },
-  categoryContent: {
+  optionCard: {
+    flex: 1,
+    margin: 8,
     padding: 20,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#f8f9fa',
     minHeight: 80,
-    flexDirection: 'row',
   },
-  categoryText: {
+  selectedCard: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#1a1a1a',
+  },
+  optionText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#1a1a1a',
     textAlign: 'center',
-    flex: 1,
   },
   selectedText: {
     color: '#ffffff',
   },
-  unselectedText: {
-    color: '#000000',
+  colorOption: {
+    width: (SCREEN_WIDTH - 96) / 4,
+    height: (SCREEN_WIDTH - 96) / 4,
+    borderRadius: (SCREEN_WIDTH - 96) / 8,
+    margin: 8,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedColor: {
+    borderColor: '#ffffff',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   checkmark: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
     color: '#ffffff',
-    marginLeft: 8,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  bottomContainer: {
-    paddingHorizontal: 24,
+  brandOption: {
+    flex: 1,
+    margin: 8,
     paddingVertical: 20,
-    paddingBottom: 40,
-  },
-  continueButton: {
-    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  continueEnabled: {
-    backgroundColor: '#000000',
-  },
-  continueDisabled: {
-    backgroundColor: '#f5f5f5',
-  },
-  continueText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  continueEnabledText: {
-    color: '#ffffff',
-  },
-  continueDisabledText: {
-    color: '#999999',
-  },
-  hintText: {
-    fontSize: 14,
-    color: '#999999',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  loadingContainer: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#f8f9fa',
   },
-  loadingText: {
+  selectedBrand: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#1a1a1a',
+  },
+  brandText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
-    marginTop: 16,
-    textAlign: 'center',
+    color: '#1a1a1a',
+  },
+  selectedBrandText: {
+    color: '#ffffff',
+  },
+  footer: {
+    flexDirection: 'row',
+    padding: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  backButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginRight: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  nextButton: {
+    flex: 2,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
   },
 });
+
