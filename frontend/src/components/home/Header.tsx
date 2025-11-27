@@ -1,49 +1,92 @@
-
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export function Header() {
-  const insets = useSafeAreaInsets();
+interface HeaderProps {
+  onSearchPress?: () => void;
+  onNotificationsPress?: () => void;
+  onLikedPress?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({
+  onSearchPress,
+  onNotificationsPress,
+  onLikedPress,
+}) => {
+  const theme = useColorScheme();
+  const light = theme !== 'dark';
+
   return (
-    <View style={[styles.header, { paddingTop: insets.top > 10 ? insets.top - 30 : 0 }]}>
-      <Text style={styles.headerTitle}>DRYP</Text>
-      <View style={styles.headerIcons}>
-        <Pressable onPress={() => router.push('/(tabs)/search')}>
-          <Ionicons name="search-outline" size={28} color="#000" />
+    <View style={styles.container}>
+      <Text style={[styles.title, { color: light ? '#111' : '#eee' }]}>
+        DRYP
+      </Text>
+      <View style={styles.iconsContainer}>
+        <Pressable 
+          onPress={onSearchPress} 
+          style={({ pressed }) => [
+            styles.iconButton,
+            { opacity: pressed ? 0.5 : 1 }
+          ]}
+        >
+          <Ionicons 
+            name="search" 
+            size={24} 
+            color={light ? "#111" : "#eee"} 
+          />
         </Pressable>
-        <Pressable onPress={() => router.push('/liked-items')}>
-          <Ionicons name="heart-outline" size={28} color="#000" />
+        
+        <Pressable 
+          onPress={onNotificationsPress}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { opacity: pressed ? 0.5 : 1 }
+          ]}
+        >
+          <Ionicons 
+            name="notifications-outline" 
+            size={24} 
+            color={light ? "#111" : "#eee"} 
+          />
         </Pressable>
-        <Pressable onPress={() => router.push('/notifications')}>
-          <Ionicons name="notifications-outline" size={28} color="#000" />
+        
+        <Pressable 
+          onPress={onLikedPress}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { opacity: pressed ? 0.5 : 1 }
+          ]}
+        >
+          <Ionicons 
+            name="heart-outline" 
+            size={24} 
+            color={light ? "#111" : "#eee"} 
+          />
         </Pressable>
       </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  header: {
+  container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    zIndex: 10,
+    paddingVertical: 10,
   },
-  headerTitle: {
-    fontSize: 33,
-    fontWeight: '100',
-    color: '#000',
-    letterSpacing: 1.5,
+  title: {
+    fontSize: 28,
+    fontFamily: 'JosefinSans_700Bold',
+    letterSpacing: 1,
   },
-  headerIcons: {
+  iconsContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 16,
+  },
+  iconButton: {
+    padding: 4,
   },
 });

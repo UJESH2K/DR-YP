@@ -9,6 +9,8 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Animated,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomRouter } from '../src/hooks/useCustomRouter';
@@ -16,10 +18,9 @@ import { useAuthStore } from '../src/state/auth';
 import { useSettingsStore } from '../src/state/settings';
 import { useCacheStore } from '../src/state/cache';
 import { apiCall } from '../src/lib/api';
-import SingleSelectDropdown from '../src/components/SingleSelectDropdown';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 const countryCurrencyOptions = [
   { label: '🇮🇳 India (INR)', value: 'INR' },
@@ -29,6 +30,15 @@ const countryCurrencyOptions = [
   { label: '🇯🇵 Japan (JPY)', value: 'JPY' },
   { label: '🇨🇦 Canada (CAD)', value: 'CAD' },
   { label: '🇦🇺 Australia (AUD)', value: 'AUD' },
+  { label: '🇸🇬 Singapore (SGD)', value: 'SGD' },
+  { label: '🇨🇭 Switzerland (CHF)', value: 'CHF' },
+  { label: '🇨🇳 China (CNY)', value: 'CNY' },
+  { label: '🇭🇰 Hong Kong (HKD)', value: 'HKD' },
+  { label: '🇦🇪 UAE (AED)', value: 'AED' },
+  { label: '🇸🇦 Saudi Arabia (SAR)', value: 'SAR' },
+  { label: '🇰🇷 South Korea (KRW)', value: 'KRW' },
+  { label: '🇧🇷 Brazil (BRL)', value: 'BRL' },
+  { label: '🇲🇽 Mexico (MXN)', value: 'MXN' },
 ];
 
 const colorOptions = [
@@ -44,14 +54,87 @@ const colorOptions = [
 
 type OnboardingStep = 'currency' | 'categories' | 'colors' | 'brands';
 
+// Scrollable Country List Component
+const CountryList = ({ options, selectedValue, onSelectionChange, isDark }) => {
+  const countryListStyles = createCountryListStyles(isDark);
+
+  return (
+    <FlatList
+      data={options}
+      keyExtractor={(item) => item.value}
+      style={countryListStyles.list}
+      contentContainerStyle={countryListStyles.listContent}
+      showsVerticalScrollIndicator={true}
+      renderItem={({ item }) => (
+        <Pressable
+          style={[
+            countryListStyles.countryItem,
+            selectedValue === item.value && countryListStyles.countryItemSelected
+          ]}
+          onPress={() => onSelectionChange(item.value)}
+        >
+          <Text style={[
+            countryListStyles.countryText,
+            selectedValue === item.value && countryListStyles.countryTextSelected
+          ]}>
+            {item.label}
+          </Text>
+          {selectedValue === item.value && (
+            <Text style={countryListStyles.checkmark}>✓</Text>
+          )}
+        </Pressable>
+      )}
+    />
+  );
+};
+
+const createCountryListStyles = (isDark: boolean) => StyleSheet.create({
+  list: {
+    width: '100%',
+    maxWidth: 300,
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  countryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#333' : '#f0f0f0',
+  },
+  countryItemSelected: {
+    borderBottomColor: isDark ? '#fff' : '#1a1a1a',
+  },
+  countryText: {
+    fontSize: 16,
+    fontFamily: 'JosefinSans_400Regular',
+    color: isDark ? '#fff' : '#1a1a1a',
+  },
+  countryTextSelected: {
+    fontFamily: 'JosefinSans_500Medium',
+    color: isDark ? '#fff' : '#1a1a1a',
+  },
+  checkmark: {
+    fontSize: 16,
+    color: isDark ? '#fff' : '#1a1a1a',
+    fontWeight: 'bold',
+  },
+});
+
 export default function Onboarding() {
   const router = useCustomRouter();
   const { user, updateUser } = useAuthStore();
   const { currency, setCurrency } = useSettingsStore();
   const { categories: cachedCategories, brands: cachedBrands, setCategories: setCachedCategories, setBrands: setCachedBrands } = useCacheStore();
+  
+  // Get system color scheme
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [step, setStep] = useState<OnboardingStep>('currency');
-
   const [categories, setCategories] = useState<string[]>(cachedCategories.data || []);
   const [brands, setBrands] = useState<string[]>(cachedBrands.data || []);
   const [isFetching, setIsFetching] = useState(true);
@@ -60,31 +143,47 @@ export default function Onboarding() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(user?.preferences?.categories || []);
   const [selectedColors, setSelectedColors] = useState<string[]>(user?.preferences?.colors || []);
   const [selectedBrands, setSelectedBrands] = useState<string[]>(user?.preferences?.brands || []);
-  
   const [isLoading, setIsLoading] = useState(false);
+
+  // Animations
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(20))[0];
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [step]);
 
   useEffect(() => {
     const fetchPreferenceData = async () => {
-      if (!user) return; // Fix race condition
+      if (!user) return;
 
       setIsFetching(true);
       try {
         const now = Date.now();
-        const categoriesPromise =
-          cachedCategories.timestamp && now - cachedCategories.timestamp < CACHE_DURATION
-            ? Promise.resolve(cachedCategories.data)
-            : apiCall('/api/products/categories').then(data => {
-                if (Array.isArray(data)) setCachedCategories(data);
-                return data;
-              });
+        const categoriesPromise = cachedCategories.timestamp && now - cachedCategories.timestamp < CACHE_DURATION
+          ? Promise.resolve(cachedCategories.data)
+          : apiCall('/api/products/categories').then(data => {
+              if (Array.isArray(data)) setCachedCategories(data);
+              return data;
+            });
 
-        const brandsPromise =
-          cachedBrands.timestamp && now - cachedBrands.timestamp < CACHE_DURATION
-            ? Promise.resolve(cachedBrands.data)
-            : apiCall('/api/products/brands').then(data => {
-                if (Array.isArray(data)) setCachedBrands(data);
-                return data;
-              });
+        const brandsPromise = cachedBrands.timestamp && now - cachedBrands.timestamp < CACHE_DURATION
+          ? Promise.resolve(cachedBrands.data)
+          : apiCall('/api/products/brands').then(data => {
+              if (Array.isArray(data)) setCachedBrands(data);
+              return data;
+            });
 
         const [categoriesData, brandsData] = await Promise.all([categoriesPromise, brandsPromise]);
 
@@ -97,7 +196,7 @@ export default function Onboarding() {
       }
     };
     fetchPreferenceData();
-  }, [user]); // Depend on user
+  }, [user]);
 
   const toggleSelection = (array: string[], setArray: (arr: string[]) => void, item: string) => {
     setArray(array.includes(item) ? array.filter(i => i !== item) : [...array, item]);
@@ -139,283 +238,409 @@ export default function Onboarding() {
       } else {
         throw new Error('Failed to save preferences');
       }
-      
     } catch (error) {
-      console.error('Error saving preferences:', error);
-      Alert.alert('Error', 'Could not save your preferences. Please try again.', [{ text: 'OK' }]);
+      Alert.alert('Error', 'Could not save your preferences. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const renderPreferenceScreen = () => {
+  const StepIndicator = () => {
+    const steps = ['currency', 'categories', 'colors', 'brands'];
+    const currentIndex = steps.indexOf(step);
+    const styles = createStepIndicatorStyles(isDark);
+
+    return (
+      <View style={styles.stepIndicator}>
+        {steps.map((_, index) => (
+          <View key={index} style={styles.stepLineContainer}>
+            <View
+              style={[
+                styles.stepDot,
+                index <= currentIndex ? styles.stepDotActive : styles.stepDotInactive,
+              ]}
+            />
+            {index < steps.length - 1 && (
+              <View
+                style={[
+                  styles.stepLine,
+                  index < currentIndex ? styles.stepLineActive : styles.stepLineInactive,
+                ]}
+              />
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderContent = () => {
     if (isFetching && step !== 'currency') {
-      return <ActivityIndicator size="large" style={styles.centered} />;
+      return (
+        <View style={[styles.centered, { backgroundColor: isDark ? '#000' : '#fff' }]}>
+          <ActivityIndicator size="large" color={isDark ? '#fff' : '#1a1a1a'} />
+        </View>
+      );
     }
 
     let content;
     switch (step) {
       case 'currency':
         content = (
-          <View style={styles.currencyContainer}>
-            <SingleSelectDropdown
+          <Animated.View 
+            style={[
+              styles.currencyContent,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <CountryList
               options={countryCurrencyOptions}
               selectedValue={selectedCurrency}
               onSelectionChange={setSelectedCurrency}
-              placeholder="Select your currency"
+              isDark={isDark}
             />
-          </View>
+          </Animated.View>
         );
         break;
       case 'categories':
         content = (
-          <FlatList
-            key="categories-list"
-            data={categories}
-            keyExtractor={(item) => item}
-            numColumns={2}
-            contentContainerStyle={styles.grid}
-            renderItem={({ item }) => (
-              <Pressable
-                style={[styles.optionCard, selectedCategories.includes(item) && styles.selectedCard]}
-                onPress={() => toggleSelection(selectedCategories, setSelectedCategories, item)}
-              >
-                <Text style={[styles.optionText, selectedCategories.includes(item) && styles.selectedText]}>
-                  {item}
-                </Text>
-              </Pressable>
-            )}
-          />
+          <Animated.View 
+            style={[
+              styles.content,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <FlatList
+              key="categories-2-columns"
+              data={categories}
+              keyExtractor={(item) => item}
+              numColumns={2}
+              contentContainerStyle={styles.grid}
+              showsVerticalScrollIndicator={true}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[
+                    styles.selectionCard,
+                    selectedCategories.includes(item) && styles.selectionCardActive
+                  ]}
+                  onPress={() => toggleSelection(selectedCategories, setSelectedCategories, item)}
+                >
+                  <Text style={[
+                    styles.selectionText,
+                    selectedCategories.includes(item) && styles.selectionTextActive
+                  ]}>
+                    {item}
+                  </Text>
+                  {selectedCategories.includes(item) && (
+                    <View style={styles.activeIndicator} />
+                  )}
+                </Pressable>
+              )}
+            />
+          </Animated.View>
         );
         break;
       case 'colors':
         content = (
-          <FlatList
-            key="colors-list"
-            data={colorOptions}
-            keyExtractor={(item) => item.id}
-            numColumns={4}
-            contentContainerStyle={styles.grid}
-            renderItem={({ item }) => (
-              <Pressable
-                style={[styles.colorOption, { backgroundColor: item.color }, selectedColors.includes(item.id) && styles.selectedColor]}
-                onPress={() => toggleSelection(selectedColors, setSelectedColors, item.id)}
-              >
-                {selectedColors.includes(item.id) && <Text style={styles.checkmark}>✓</Text>}
-              </Pressable>
-            )}
-          />
+          <Animated.View 
+            style={[
+              styles.content,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <FlatList
+              key="colors-4-columns"
+              data={colorOptions}
+              keyExtractor={(item) => item.id}
+              numColumns={4}
+              contentContainerStyle={styles.grid}
+              showsVerticalScrollIndicator={true}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[styles.colorCircle, { backgroundColor: item.color }]}
+                  onPress={() => toggleSelection(selectedColors, setSelectedColors, item.id)}
+                >
+                  {selectedColors.includes(item.id) && (
+                    <View style={styles.colorSelection}>
+                      <Text style={styles.checkIcon}>✓</Text>
+                    </View>
+                  )}
+                </Pressable>
+              )}
+            />
+          </Animated.View>
         );
         break;
       case 'brands':
         content = (
-          <FlatList
-            key="brands-list"
-            data={brands}
-            keyExtractor={(item) => item}
-            numColumns={2}
-            contentContainerStyle={styles.grid}
-            renderItem={({ item }) => (
-              <Pressable
-                style={[styles.brandOption, selectedBrands.includes(item) && styles.selectedBrand]}
-                onPress={() => toggleSelection(selectedBrands, setSelectedBrands, item)}
-              >
-                <Text style={[styles.brandText, selectedBrands.includes(item) && styles.selectedBrandText]}>
-                  {item}
-                </Text>
-              </Pressable>
-            )}
-          />
+          <Animated.View 
+            style={[
+              styles.content,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <FlatList
+              key="brands-2-columns"
+              data={brands}
+              keyExtractor={(item) => item}
+              numColumns={2}
+              contentContainerStyle={styles.grid}
+              showsVerticalScrollIndicator={true}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[
+                    styles.selectionCard,
+                    selectedBrands.includes(item) && styles.selectionCardActive
+                  ]}
+                  onPress={() => toggleSelection(selectedBrands, setSelectedBrands, item)}
+                >
+                  <Text style={[
+                    styles.selectionText,
+                    selectedBrands.includes(item) && styles.selectionTextActive
+                  ]}>
+                    {item}
+                  </Text>
+                  {selectedBrands.includes(item) && (
+                    <View style={styles.activeIndicator} />
+                  )}
+                </Pressable>
+              )}
+            />
+          </Animated.View>
         );
         break;
-      default:
-        content = null;
     }
 
-    return (
-      <>
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {step === 'currency' ? 'Select Your Currency' :
-             step === 'categories' ? 'Choose Your Styles' :
-             step === 'colors' ? 'Select Favorite Colors' :
-             'Pick Preferred Brands'}
-          </Text>
-          <Text style={styles.subtitle}>Help us personalize your experience.</Text>
-        </View>
-
-        {content}
-
-        <View style={styles.footer}>
-          {step !== 'currency' && (
-            <Pressable style={styles.backButton} onPress={handleBack}>
-              <Text style={styles.backButtonText}>Back</Text>
-            </Pressable>
-          )}
-          <Pressable
-            style={[styles.nextButton, (isLoading || (isFetching && step !== 'currency')) && styles.disabledButton]}
-            onPress={step === 'brands' ? finishOnboarding : handleNext}
-            disabled={isLoading || (isFetching && step !== 'currency')}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.nextButtonText}>
-                {step === 'brands' ? 'Finish' : 'Next'}
-              </Text>
-            )}
-          </Pressable>
-        </View>
-      </>
-    );
+    return content;
   };
+
+  const stepTitles = {
+    currency: 'Select Currency',
+    categories: 'Preferred Categories',
+    colors: 'Favorite Colors',
+    brands: 'Preferred Brands',
+  };
+
+  const stepSubtitles = {
+    currency: 'Choose your preferred currency for pricing',
+    categories: 'Select the styles you love',
+    colors: 'Pick your favorite color palette',
+    brands: 'Choose brands that match your style',
+  };
+
+  const styles = createStyles(isDark);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#000' : '#fff'} />
       
-      {renderPreferenceScreen()}
+      <View style={styles.header}>
+        <StepIndicator />
+        <View style={styles.titleSection}>
+          <Text style={styles.stepTitle}>{stepTitles[step]}</Text>
+          <Text style={styles.stepSubtitle}>{stepSubtitles[step]}</Text>
+        </View>
+      </View>
+
+      {/* Main content area */}
+      <View style={styles.mainContent}>
+        {renderContent()}
+      </View>
+
+      {/* Fixed footer at bottom */}
+      <View style={styles.footer}>
+        {step !== 'currency' && (
+          <Pressable style={styles.secondaryButton} onPress={handleBack}>
+            <Text style={styles.secondaryButtonText}>Back</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.primaryButton, (isLoading || (isFetching && step !== 'currency')) && styles.primaryButtonDisabled]}
+          onPress={step === 'brands' ? finishOnboarding : handleNext}
+          disabled={isLoading || (isFetching && step !== 'currency')}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#ffffff" size="small" />
+          ) : (
+            <Text style={styles.primaryButtonText}>
+              {step === 'brands' ? 'Complete Setup' : 'Continue'}
+            </Text>
+          )}
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
-const styles = StyleSheet.create({
+
+const createStepIndicatorStyles = (isDark: boolean) => StyleSheet.create({
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  stepLineContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  stepDotActive: {
+    backgroundColor: isDark ? '#fff' : '#1a1a1a',
+  },
+  stepDotInactive: {
+    backgroundColor: isDark ? '#333' : '#e5e5e5',
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    marginHorizontal: 4,
+  },
+  stepLineActive: {
+    backgroundColor: isDark ? '#fff' : '#1a1a1a',
+  },
+  stepLineInactive: {
+    backgroundColor: isDark ? '#333' : '#e5e5e5',
+  },
+});
+
+const createStyles = (isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: isDark ? '#000' : '#ffffff',
+  },
+  header: {
+    padding: 24,
+    paddingTop: 40,
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  titleSection: {
+    marginTop: 8,
+    marginBottom: 32,
+  },
+  stepTitle: {
+    fontSize: 28,
+    fontFamily: 'JosefinSans_500Medium',
+    color: isDark ? '#fff' : '#1a1a1a',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  stepSubtitle: {
+    fontSize: 16,
+    fontFamily: 'JosefinSans_400Regular',
+    color: isDark ? '#ccc' : '#666',
+    lineHeight: 22,
+  },
+  currencyContent: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666666',
-  },
   grid: {
-    paddingHorizontal: 16,
+    paddingBottom: 100,
   },
-  currencyContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
-  },
-  optionCard: {
+  selectionCard: {
     flex: 1,
-    margin: 8,
+    margin: 6,
     padding: 20,
     borderRadius: 12,
+    backgroundColor: isDark ? '#1a1a1a' : '#f8f9fa',
+    borderWidth: 1,
+    borderColor: isDark ? '#333' : '#f0f0f0',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f9fa',
-    borderWidth: 2,
-    borderColor: '#f8f9fa',
     minHeight: 80,
   },
-  selectedCard: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#1a1a1a',
+  selectionCardActive: {
+    backgroundColor: isDark ? '#fff' : '#1a1a1a',
+    borderColor: isDark ? '#fff' : '#1a1a1a',
   },
-  optionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+  selectionText: {
+    fontSize: 15,
+    fontFamily: 'JosefinSans_400Regular',
+    color: isDark ? '#fff' : '#1a1a1a',
     textAlign: 'center',
   },
-  selectedText: {
-    color: '#ffffff',
+  selectionTextActive: {
+    color: isDark ? '#000' : '#ffffff',
+    fontFamily: 'JosefinSans_500Medium',
   },
-  colorOption: {
-    width: (SCREEN_WIDTH - 96) / 4,
-    height: (SCREEN_WIDTH - 96) / 4,
-    borderRadius: (SCREEN_WIDTH - 96) / 8,
-    margin: 8,
-    borderWidth: 3,
-    borderColor: 'transparent',
+  activeIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: isDark ? '#000' : '#ffffff',
+  },
+  colorCircle: {
+    width: (SCREEN_WIDTH - 140) / 4,
+    height: (SCREEN_WIDTH - 140) / 4,
+    borderRadius: (SCREEN_WIDTH - 140) / 8,
+    margin: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? '#333' : '#f0f0f0',
+  },
+  colorSelection: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  selectedColor: {
-    borderColor: '#ffffff',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  checkmark: {
-    fontSize: 24,
+  checkIcon: {
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  brandOption: {
-    flex: 1,
-    margin: 8,
-    paddingVertical: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f8f9fa',
-    borderWidth: 2,
-    borderColor: '#f8f9fa',
-  },
-  selectedBrand: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#1a1a1a',
-  },
-  brandText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  selectedBrandText: {
-    color: '#ffffff',
   },
   footer: {
     flexDirection: 'row',
     padding: 24,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: isDark ? '#333' : '#f0f0f0',
+    backgroundColor: isDark ? '#000' : '#ffffff',
   },
-  backButton: {
+  secondaryButton: {
+    padding: 18,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontFamily: 'JosefinSans_500Medium',
+    color: isDark ? '#ccc' : '#666',
+  },
+  primaryButton: {
     flex: 1,
-    padding: 16,
+    padding: 18,
     borderRadius: 12,
+    backgroundColor: isDark ? '#fff' : '#1a1a1a',
     alignItems: 'center',
-    marginRight: 8,
-    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
   },
-  backButtonText: {
+  primaryButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontFamily: 'JosefinSans_500Medium',
+    color: isDark ? '#000' : '#ffffff',
   },
-  nextButton: {
-    flex: 2,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  disabledButton: {
-    backgroundColor: '#cccccc',
+  primaryButtonDisabled: {
+    backgroundColor: isDark ? '#333' : '#cccccc',
   },
 });
-

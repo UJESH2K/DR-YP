@@ -1,11 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, FlatList, StyleSheet, Modal, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  FlatList,
+  TouchableWithoutFeedback,
+  useColorScheme,
+  Modal,
+  LayoutRectangle,
+  ViewStyle,
+} from "react-native";
 
-interface MultiSelectDropdownProps {
+interface Props {
   options: string[];
   selectedOptions: string[];
-  onSelectionChange: (selected: string[]) => void;
+  onSelectionChange: (opts: string[]) => void;
   placeholder: string;
   containerStyle?: ViewStyle;
 }
@@ -16,144 +26,147 @@ export default function MultiSelectDropdown({
   onSelectionChange,
   placeholder,
   containerStyle,
-}: MultiSelectDropdownProps) {
-  const [modalVisible, setModalVisible] = useState(false);
-  const [tempSelectedOptions, setTempSelectedOptions] = useState(selectedOptions);
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const [buttonLayout, setButtonLayout] = useState<LayoutRectangle | null>(null);
+  const buttonContainerRef = useRef<View>(null);
+  const theme = useColorScheme();
+  const light = theme !== "dark";
 
-  useEffect(() => {
-    setTempSelectedOptions(selectedOptions);
-  }, [selectedOptions]);
-
-  const toggleOption = (option: string) => {
-    const newSelectedOptions = tempSelectedOptions.includes(option)
-      ? tempSelectedOptions.filter(item => item !== option)
-      : [...tempSelectedOptions, option];
-    setTempSelectedOptions(newSelectedOptions);
+  const toggleSelect = (value: string) => {
+    if (selectedOptions.includes(value)) {
+      onSelectionChange(selectedOptions.filter((x) => x !== value));
+    } else {
+      onSelectionChange([...selectedOptions, value]);
+    }
   };
 
-  const handleApply = () => {
-    onSelectionChange(tempSelectedOptions);
-    setModalVisible(false);
+  const openDropdown = () => {
+    if (buttonContainerRef.current) {
+      buttonContainerRef.current.measureInWindow((x, y, width, height) => {
+        setButtonLayout({ x, y, width, height });
+        setOpen(true);
+      });
+    } else {
+      setOpen(true);
+    }
   };
 
-  const handleCancel = () => {
-    setTempSelectedOptions(selectedOptions);
-    setModalVisible(false);
+  const closeDropdown = () => {
+    setOpen(false);
   };
 
-  const renderItem = ({ item }: { item: string }) => (
-    <Pressable style={styles.option} onPress={() => toggleOption(item)}>
-      <Text style={tempSelectedOptions.includes(item) ? styles.selectedOptionText : styles.optionText}>
-        {item}
-      </Text>
-    </Pressable>
-  );
+  const buttonLabel =
+    selectedOptions.length === 0
+      ? placeholder
+      : `${placeholder} (${selectedOptions.length})`;
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      <Pressable style={styles.dropdown} onPress={() => setModalVisible(true)}>
-        <Text style={styles.dropdownText}>
-          {placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color="white" />
-      </Pressable>
+    <>
+      <View
+        ref={buttonContainerRef}
+        style={[styles.buttonContainer, containerStyle]}
+        collapsable={false}
+      >
+        <Pressable
+          onPress={openDropdown}
+          style={styles.button}
+          android_ripple={{ color: light ? "#ddd" : "#444" }}
+        >
+          <Text style={[styles.buttonText, { color: light ? "#111" : "#eee" }]}>
+            {buttonLabel}
+          </Text>
+        </Pressable>
+      </View>
 
       <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={handleCancel}
+        transparent
+        visible={open}
+        animationType="fade"
+        onRequestClose={closeDropdown}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <FlatList
-              data={options}
-              renderItem={renderItem}
-              keyExtractor={item => item}
-            />
-            <View style={styles.buttonsContainer}>
-              <Pressable style={styles.cancelButton} onPress={handleCancel}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.applyButton} onPress={handleApply}>
-                <Text style={styles.applyButtonText}>Apply</Text>
-              </Pressable>
-            </View>
+        <TouchableWithoutFeedback onPress={closeDropdown}>
+          <View style={styles.backdrop}>
+            <TouchableWithoutFeedback>
+              <View
+                style={[
+                  styles.dropdown,
+                  {
+                    backgroundColor: light ? "#fff" : "#000",
+                    top: (buttonLayout?.y ?? 100) + (buttonLayout?.height ?? 0) + 4,
+                    left: buttonLayout?.x ?? 20,
+                    minWidth: buttonLayout?.width ?? 150,
+                  },
+                ]}
+              >
+                <FlatList
+                  data={options}
+                  keyExtractor={(item) => item}
+                  style={{ maxHeight: 250 }}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={styles.item}
+                      onPress={() => toggleSelect(item)}
+                      android_ripple={{ color: light ? "#eee" : "#222" }}
+                    >
+                      <Text
+                        style={[
+                          styles.itemText,
+                          {
+                            color: selectedOptions.includes(item)
+                              ? (light ? "#000" : "#fff")
+                              : (light ? "#444" : "#bbb"),
+                            fontWeight: selectedOptions.includes(item) ? '600' : '400',
+                          }
+                        ]}
+                      >
+                        {item}
+                      </Text>
+                    </Pressable>
+                  )}
+                />
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    // marginBottom: 10, // Removed to allow parent to manage spacing
+  buttonContainer: {
+    alignSelf: "center",
+    marginHorizontal: 3, // Reduced spacing between buttons
+  },
+  button: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  backdrop: {
+    flex: 1,
   },
   dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#000',
-    borderRadius: 20, // Sleekness
-    padding: 5,
-    backgroundColor: '#000',
+    position: "absolute",
+    borderRadius: 8,
+    paddingVertical: 2,
+    elevation: 20,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
-  dropdownText: {
-    color: '#fff',
-    marginRight: 5,
+  item: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    width: '80%',
-    maxHeight: '80%',
-  },
-  option: {
-    paddingVertical: 10,
-  },
-  optionText: {
-    fontSize: 16,
-  },
-  selectedOptionText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-  },
-  applyButton: {
-    padding: 10,
-    backgroundColor: '#000', // Changed to black
-    borderRadius: 5,
-    alignItems: 'center',
-    flex: 1,
-    marginLeft: 5,
-  },
-  applyButtonText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  cancelButton: {
-    padding: 10,
-    backgroundColor: '#ccc',
-    borderRadius: 5,
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 5,
-  },
-  cancelButtonText: {
-    color: 'white',
-    fontSize: 16,
+  itemText: {
+    fontSize: 14,
   },
 });

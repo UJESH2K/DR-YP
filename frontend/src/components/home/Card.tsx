@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, Animated, StyleSheet } from 'react-native';
+import { View, Text, Image, Animated, StyleSheet, useColorScheme } from 'react-native';
 import type { Item } from '../../types';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../../constants/dimensions';
 import { formatPrice } from '../../utils/formatting';
@@ -13,31 +13,110 @@ interface CardProps {
   panHandlers?: any;
 }
 
-export function Card({ item, style, likeOpacity, nopeOpacity, isNext = false, panHandlers }: CardProps) {
+export function Card({
+  item,
+  style,
+  likeOpacity,
+  nopeOpacity,
+  isNext = false,
+  panHandlers,
+}: CardProps) {
   if (!item) return null;
 
+  const theme = useColorScheme();
+  const light = theme !== "dark";
+
   return (
-    <Animated.View 
-      style={[styles.card, style]} 
-      pointerEvents={isNext ? 'none' : 'auto'}
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          backgroundColor: light ? "#fff" : "#111",
+          shadowColor: light ? "#000" : "#fff",
+        },
+        style,
+      ]}
+      pointerEvents={isNext ? "none" : "auto"}
       {...panHandlers}
     >
-      {likeOpacity && <Animated.View style={[styles.overlay, styles.likeOverlay, { opacity: likeOpacity }]} />}
-      {nopeOpacity && <Animated.View style={[styles.overlay, styles.dislikeOverlay, { opacity: nopeOpacity }]} />}
-      
+      {/* Like / Nope Overlays */}
+      {likeOpacity && (
+        <Animated.View
+          style={[styles.overlay, styles.likeOverlay, { opacity: likeOpacity }]}
+        />
+      )}
+      {nopeOpacity && (
+        <Animated.View
+          style={[
+            styles.overlay,
+            styles.dislikeOverlay,
+            { opacity: nopeOpacity },
+          ]}
+        />
+      )}
+
+      {/* Product Image */}
       <Image source={{ uri: item.image }} style={styles.cardImage} />
-      
+
+      {/* Info Section */}
       <View style={styles.infoSection}>
-        <Text style={styles.cardBrand}>{item.brand}</Text>
-        <Text style={styles.cardTitle} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
+        <Text
+          style={[
+            styles.cardBrand,
+            {
+              color: light ? "#777" : "#ccc",
+              fontFamily: "JosefinSans_400Regular",
+            },
+          ]}
+        >
+          {item.brand}
+        </Text>
+
+        <Text
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          style={[
+            styles.cardTitle,
+            {
+              color: light ? "#111" : "#eee",
+              fontFamily: "JosefinSans_600SemiBold",
+              textAlign: "center",
+            },
+          ]}
+        >
+          {item.title}
+        </Text>
+
+        {/* Tags */}
         <View style={styles.tagsContainer}>
           {item.tags?.slice(0, 3).map((tag: string) => (
             <View key={tag} style={[styles.tag, isNext && { opacity: 0.7 }]}>
-              <Text style={styles.tagText}>{tag}</Text>
+              <Text
+                style={[
+                  styles.tagText,
+                  {
+                    fontFamily: "JosefinSans_400Regular",
+                  },
+                ]}
+              >
+                {tag}
+              </Text>
             </View>
           ))}
         </View>
-        <Text style={[styles.cardPrice, isNext && { opacity: 0.7 }]}>{formatPrice(item.price)}</Text>
+
+        <Text
+          style={[
+            styles.cardPrice,
+            isNext && { opacity: 0.7 },
+            {
+              color: light ? "#000" : "#fff",
+              fontFamily: "CormorantGaramond_700Bold",
+            },
+          ]}
+        >
+          {formatPrice(item.price)}
+        </Text>
       </View>
     </Animated.View>
   );
@@ -47,73 +126,80 @@ const styles = StyleSheet.create({
   card: {
     width: SCREEN_WIDTH * 0.9,
     height: SCREEN_HEIGHT * 0.7,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    borderRadius: 22,
+    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     position: 'absolute',
+    overflow: 'hidden',
   },
+
   cardImage: {
     width: '100%',
-    height: '70%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    height: '68%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
   },
+
   infoSection: {
-    padding: 15,
-    flexShrink: 1,
+    padding: 16,
+    alignItems: "center",
   },
+
   cardBrand: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
+    fontSize: 13,
+    marginBottom: 2,
   },
+
   cardTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  cardPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginTop: 4,
     marginBottom: 8,
+    letterSpacing: 0.3,
   },
+
+  cardPrice: {
+    fontSize: 20,
+    marginTop: 8,
+    letterSpacing: 0.5,
+  },
+
   tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 6,
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: 6,
+    marginBottom: 6,
+    justifyContent: "center",
   },
+
   tag: {
-    backgroundColor: '#e0e0e0',
-    paddingHorizontal: 8,
+    backgroundColor: "#eee",
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 14,
   },
+
   tagText: {
-    fontSize: 10,
-    color: '#333',
+    fontSize: 11,
+    color: "#444",
   },
+
   overlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 20,
-    zIndex: 10,
+    borderRadius: 22,
+    zIndex: 20,
   },
+
   likeOverlay: {
-    backgroundColor: 'rgba(0, 255, 0, 0.2)',
+    backgroundColor: "rgba(0, 255, 0, 0.15)",
   },
+
   dislikeOverlay: {
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+    backgroundColor: "rgba(255, 0, 0, 0.15)",
   },
 });
