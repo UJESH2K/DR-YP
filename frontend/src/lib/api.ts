@@ -1,3 +1,4 @@
+// src/lib/api.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../state/auth';
 
@@ -103,3 +104,62 @@ export async function fetchProducts() {
 export async function checkBackendHealth() {
   return apiCall('/health');
 }
+
+// Enhanced API functions for better compatibility
+export interface ApiResponse<T = any> {
+  success?: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
+// Product-specific API functions
+export const productApi = {
+  // Get product by ID
+  getProduct: async (id: string) => {
+    const response = await apiCall(`/api/products/${id}`);
+    // Transform response to match expected format
+    if (response && !response.message) {
+      return response; // Return the product data directly
+    }
+    throw new Error(response?.message || 'Failed to fetch product');
+  },
+  
+  // Get all products
+  getProducts: async () => {
+    const response = await apiCall('/api/products');
+    if (response && !response.message) {
+      return response;
+    }
+    throw new Error(response?.message || 'Failed to fetch products');
+  },
+  
+  // Get products by category
+  getProductsByCategory: async (category: string) => {
+    const response = await apiCall(`/api/products/category/${category}`);
+    if (response && !response.message) {
+      return response;
+    }
+    throw new Error(response?.message || 'Failed to fetch products by category');
+  },
+  
+  // Search products
+  searchProducts: async (query: string) => {
+    const response = await apiCall(`/api/products/search?q=${query}`);
+    if (response && !response.message) {
+      return response;
+    }
+    throw new Error(response?.message || 'Failed to search products');
+  },
+};
+
+// For backward compatibility - wraps the response in { data } format
+export const apiCallWithData = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<{ data: T }> => {
+  const response = await apiCall(endpoint, options);
+  if (response && response.message) {
+    throw new Error(response.message);
+  }
+  return { data: response };
+};
+
+export default apiCall;

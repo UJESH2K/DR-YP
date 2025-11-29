@@ -2,71 +2,40 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface HeaderProps {
-  onSearchPress?: () => void;
-  onNotificationsPress?: () => void;
-  onLikedPress?: () => void;
-}
-
-export const Header: React.FC<HeaderProps> = ({
-  onSearchPress,
-  onNotificationsPress,
-  onLikedPress,
-}) => {
+export default function Header({ onSearchPress, onNotificationsPress, onLikedPress }) {
   const theme = useColorScheme();
-  const light = theme !== 'dark';
+  const light = theme !== "dark";
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: light ? '#111' : '#eee' }]}>
+      <Text
+        style={[
+          styles.title,
+          {
+            color: light ? "#111" : "#eee",
+            fontFamily: "JosefinSans_600SemiBold", // SAME AS LOGIN
+          }
+        ]}
+      >
         DRYP
       </Text>
+
       <View style={styles.iconsContainer}>
-        <Pressable 
-          onPress={onSearchPress} 
-          style={({ pressed }) => [
-            styles.iconButton,
-            { opacity: pressed ? 0.5 : 1 }
-          ]}
-        >
-          <Ionicons 
-            name="search" 
-            size={24} 
-            color={light ? "#111" : "#eee"} 
-          />
+        <Pressable onPress={onSearchPress} style={styles.iconButton}>
+          <Ionicons name="search" size={24} color={light ? "#111" : "#eee"} />
         </Pressable>
-        
-        <Pressable 
-          onPress={onNotificationsPress}
-          style={({ pressed }) => [
-            styles.iconButton,
-            { opacity: pressed ? 0.5 : 1 }
-          ]}
-        >
-          <Ionicons 
-            name="notifications-outline" 
-            size={24} 
-            color={light ? "#111" : "#eee"} 
-          />
+
+        <Pressable onPress={onNotificationsPress} style={styles.iconButton}>
+          <Ionicons name="notifications-outline" size={24} color={light ? "#111" : "#eee"} />
         </Pressable>
-        
-        <Pressable 
-          onPress={onLikedPress}
-          style={({ pressed }) => [
-            styles.iconButton,
-            { opacity: pressed ? 0.5 : 1 }
-          ]}
-        >
-          <Ionicons 
-            name="heart-outline" 
-            size={24} 
-            color={light ? "#111" : "#eee"} 
-          />
+
+        <Pressable onPress={onLikedPress} style={styles.iconButton}>
+          <Ionicons name="heart-outline" size={24} color={light ? "#111" : "#eee"} />
         </Pressable>
       </View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -74,18 +43,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
+
+  // ⭐ EXACT SAME FEEL AS LOGIN PAGE DRYP
   title: {
-    fontSize: 28,
-    fontFamily: 'JosefinSans_700Bold',
-    letterSpacing: 1,
+    fontSize: 42,              // From Login fontSize: 48 (slightly reduced for header)
+    letterSpacing: 3,          // Same as login
+    fontFamily: "JosefinSans_600SemiBold",
   },
+
   iconsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 16,
   },
+
   iconButton: {
     padding: 4,
   },

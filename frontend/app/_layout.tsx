@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/state/auth';
 import Toast from '../src/components/Toast';
+import CustomAlert from '../src/components/CustomAlert';
 import { useCustomRouter } from '../src/hooks/useCustomRouter';
 
 // ⭐ FONTS

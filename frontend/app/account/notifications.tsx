@@ -9,7 +9,24 @@ import {
   Switch,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useCustomRouter } from '../../src/hooks/useCustomRouter'
+
+const getNotificationIcon = (iconName: string) => {
+  switch (iconName) {
+    case 'package': return <MaterialCommunityIcons name="package" size={20} color="#000000" />
+    case 'heart': return <Ionicons name="heart" size={20} color="#000000" />
+    case 'wallet': return <MaterialCommunityIcons name="wallet" size={20} color="#000000" />
+    case 'tag': return <MaterialCommunityIcons name="tag" size={20} color="#000000" />
+    case 'star': return <MaterialCommunityIcons name="star-outline" size={20} color="#000000" />
+    case 'newspaper': return <MaterialCommunityIcons name="newspaper" size={20} color="#000000" />
+    case 'phone': return <Ionicons name="phone-portrait" size={20} color="#000000" />
+    case 'mail': return <MaterialCommunityIcons name="email" size={20} color="#000000" />
+    case 'chat': return <MaterialCommunityIcons name="chat" size={20} color="#000000" />
+    case 'location': return <Ionicons name="location" size={20} color="#000000" />
+    default: return null
+  }
+}
 
 export default function NotificationsScreen() {
   const router = useCustomRouter()
@@ -41,19 +58,19 @@ export default function NotificationsScreen() {
           key: 'orderUpdates',
           title: 'Order Updates',
           description: 'Get notified about your order status',
-          icon: '📦',
+          icon: 'package',
         },
         {
           key: 'wishlistItems',
           title: 'Wishlist Items',
           description: 'When items in your wishlist go on sale',
-          icon: '❤️',
+          icon: 'heart',
         },
         {
           key: 'priceDrops',
           title: 'Price Drops',
           description: 'Alert when prices drop on items you viewed',
-          icon: '💰',
+          icon: 'wallet',
         },
       ]
     },
@@ -64,19 +81,19 @@ export default function NotificationsScreen() {
           key: 'promotions',
           title: 'Promotions & Deals',
           description: 'Special offers and discount codes',
-          icon: '🏷️',
+          icon: 'tag',
         },
         {
           key: 'newArrivals',
           title: 'New Arrivals',
           description: 'Latest products from your favorite brands',
-          icon: '✨',
+          icon: 'star',
         },
         {
           key: 'newsletter',
           title: 'Newsletter',
           description: 'Weekly style tips and trends',
-          icon: '📰',
+          icon: 'newspaper',
         },
       ]
     },
@@ -87,19 +104,19 @@ export default function NotificationsScreen() {
           key: 'pushNotifications',
           title: 'Push Notifications',
           description: 'Receive notifications on your device',
-          icon: '📱',
+          icon: 'phone',
         },
         {
           key: 'emailNotifications',
           title: 'Email Notifications',
           description: 'Receive notifications via email',
-          icon: '📧',
+          icon: 'mail',
         },
         {
           key: 'smsNotifications',
           title: 'SMS Notifications',
           description: 'Receive notifications via text message',
-          icon: '💬',
+          icon: 'chat',
         },
       ]
     }
@@ -129,7 +146,9 @@ export default function NotificationsScreen() {
             {section.items.map((item) => (
               <View key={item.key} style={styles.notificationItem}>
                 <View style={styles.itemLeft}>
-                  <Text style={styles.itemIcon}>{item.icon}</Text>
+                  <View style={styles.itemIconContainer}>
+                    {getNotificationIcon(item.icon)}
+                  </View>
                   <View style={styles.itemContent}>
                     <Text style={styles.itemTitle}>{item.title}</Text>
                     <Text style={styles.itemDescription}>{item.description}</Text>
@@ -148,7 +167,10 @@ export default function NotificationsScreen() {
         ))}
 
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>📍 Notification Settings</Text>
+          <View style={styles.infoTitleContainer}>
+            <Ionicons name="location" size={20} color="#000000" />
+            <Text style={styles.infoTitle}>Notification Settings</Text>
+          </View>
           <Text style={styles.infoText}>
             You can also manage notification settings from your device's system settings. 
             Some notifications may still be sent for important account and security updates.
@@ -184,7 +206,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   placeholder: {
@@ -196,6 +218,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     lineHeight: 22,
     marginTop: 20,
@@ -206,7 +229,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     marginBottom: 16,
   },
@@ -223,21 +246,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  itemIcon: {
-    fontSize: 20,
+  itemIconContainer: {
     marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   itemContent: {
     flex: 1,
   },
   itemTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     marginBottom: 4,
   },
   itemDescription: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     lineHeight: 18,
   },
@@ -247,14 +272,20 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 20,
   },
+  infoTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   infoTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
-    marginBottom: 8,
   },
   infoText: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     lineHeight: 20,
   },

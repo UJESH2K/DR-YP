@@ -10,7 +10,18 @@ import {
   Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useCustomRouter } from '../../src/hooks/useCustomRouter'
+
+const getSocialIcon = (iconName: string) => {
+  switch (iconName) {
+    case 'instagram': return <MaterialCommunityIcons name="instagram" size={24} color="#000000" />
+    case 'twitter': return <MaterialCommunityIcons name="twitter" size={24} color="#000000" />
+    case 'facebook': return <MaterialCommunityIcons name="facebook" size={24} color="#000000" />
+    case 'tiktok': return <MaterialCommunityIcons name="tiktok" size={24} color="#000000" />
+    default: return null
+  }
+}
 
 export default function AboutScreen() {
   const router = useCustomRouter()
@@ -18,22 +29,22 @@ export default function AboutScreen() {
   const socialLinks = [
     {
       name: 'Instagram',
-      icon: '📷',
+      icon: 'instagram',
       url: 'https://instagram.com/dryp',
     },
     {
       name: 'Twitter',
-      icon: '🐦',
+      icon: 'twitter',
       url: 'https://twitter.com/dryp',
     },
     {
       name: 'Facebook',
-      icon: '📘',
+      icon: 'facebook',
       url: 'https://facebook.com/dryp',
     },
     {
       name: 'TikTok',
-      icon: '🎵',
+      icon: 'tiktok',
       url: 'https://tiktok.com/@dryp',
     },
   ]
@@ -69,7 +80,7 @@ export default function AboutScreen() {
       
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </Pressable>
         <Text style={styles.headerTitle}>About</Text>
         <View style={styles.placeholder} />
@@ -122,7 +133,9 @@ export default function AboutScreen() {
           </View>
           
           <View style={styles.missionItem}>
-            <Text style={styles.missionIcon}>✨</Text>
+            <View style={styles.missionIconContainer}>
+              <MaterialCommunityIcons name="star" size={24} color="#000000" />
+            </View>
             <View style={styles.missionContent}>
               <Text style={styles.missionTitle}>Inclusive Style</Text>
               <Text style={styles.missionText}>
@@ -142,7 +155,9 @@ export default function AboutScreen() {
                 style={styles.socialButton}
                 onPress={() => openSocialLink(social.url)}
               >
-                <Text style={styles.socialIcon}>{social.icon}</Text>
+                <View style={styles.socialIconContainer}>
+                  {getSocialIcon(social.icon)}
+                </View>
                 <Text style={styles.socialName}>{social.name}</Text>
               </Pressable>
             ))}
@@ -168,9 +183,18 @@ export default function AboutScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact</Text>
           <View style={styles.contactInfo}>
-            <Text style={styles.contactText}>📧 hello@dryp.com</Text>
-            <Text style={styles.contactText}>🌐 www.dryp.com</Text>
-            <Text style={styles.contactText}>📍 San Francisco, CA</Text>
+            <View style={styles.contactRow}>
+              <MaterialCommunityIcons name="email" size={20} color="#000000" />
+              <Text style={styles.contactText}>hello@dryp.com</Text>
+            </View>
+            <View style={styles.contactRow}>
+              <MaterialCommunityIcons name="web" size={20} color="#000000" />
+              <Text style={styles.contactText}>www.dryp.com</Text>
+            </View>
+            <View style={styles.contactRow}>
+              <Ionicons name="location" size={20} color="#000000" />
+              <Text style={styles.contactText}>San Francisco, CA</Text>
+            </View>
           </View>
         </View>
 
@@ -179,9 +203,11 @@ export default function AboutScreen() {
           <Text style={styles.copyrightText}>
             © 2024 DRYP. All rights reserved.
           </Text>
-          <Text style={styles.copyrightText}>
-            Made with ❤️ for fashion lovers everywhere
-          </Text>
+          <View style={styles.copyrightRow}>
+            <Text style={styles.copyrightText}>Made with</Text>
+            <Ionicons name="heart" size={16} color="#000000" style={{marginHorizontal: 4}} />
+            <Text style={styles.copyrightText}>for fashion lovers everywhere</Text>
+          </View>
         </View>
         
         <View style={styles.bottomSpacing} />
@@ -207,13 +233,10 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   placeholder: {
@@ -230,17 +253,20 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 32,
     fontWeight: '100',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     letterSpacing: -1,
     marginBottom: 8,
   },
   appVersion: {
     fontSize: 16,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     marginBottom: 4,
   },
   appTagline: {
     fontSize: 18,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     fontStyle: 'italic',
   },
@@ -250,11 +276,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     marginBottom: 16,
   },
   aboutText: {
     fontSize: 16,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     lineHeight: 24,
     marginBottom: 16,
@@ -264,10 +292,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 16,
   },
-  missionIcon: {
-    fontSize: 20,
+  missionIconContainer: {
     marginRight: 12,
     marginTop: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   missionContent: {
     flex: 1,
@@ -275,11 +304,13 @@ const styles = StyleSheet.create({
   missionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     marginBottom: 4,
   },
   missionText: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     lineHeight: 20,
   },
@@ -297,14 +328,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
-  socialIcon: {
-    fontSize: 24,
+  socialIconContainer: {
     marginBottom: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   socialName: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'JosefinSans_500Medium',
     color: '#000000',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  copyrightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   legalButton: {
     flexDirection: 'row',
@@ -317,6 +361,7 @@ const styles = StyleSheet.create({
   legalText: {
     fontSize: 16,
     fontWeight: '500',
+    fontFamily: 'JosefinSans_500Medium',
     color: '#000000',
   },
   legalArrow: {
@@ -329,6 +374,7 @@ const styles = StyleSheet.create({
   },
   contactText: {
     fontSize: 16,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
   },
   copyright: {
@@ -339,6 +385,7 @@ const styles = StyleSheet.create({
   },
   copyrightText: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#999999',
     textAlign: 'center',
     marginBottom: 4,

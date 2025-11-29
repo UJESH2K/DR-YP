@@ -116,7 +116,7 @@ export default function LoginScreen() {
                 styles.logo,
                 {
                   color: light ? "#111" : "#fff",
-                  fontFamily: "CormorantGaramond_700Bold",
+                  fontFamily: "JosefinSans_600SemiBold",
                 },
               ]}
             >

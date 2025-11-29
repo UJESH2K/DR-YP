@@ -1,3 +1,4 @@
+// app/(tabs)/home.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,27 +7,31 @@ import {
   Pressable,
   Text,
   useColorScheme,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { useHomeScreenData } from "../../src/hooks/useHomeScreenData";
 import { useSwipeAnimations } from "../../src/hooks/useSwipeAnimations";
-import { useLikedItems } from "../../src/hooks/useLikedItems";
+import { useAppState } from "../../src/hooks/useAppState";
+import { Product, Item, isProduct } from "../../src/types";
 
-import { Header } from "../../src/components/home/Header";
+import Header from "../../src/components/home/Header";
 import { Filters } from "../../src/components/home/Filters";
 import { LoadingState } from "../../src/components/home/LoadingState";
 import { EmptyState } from "../../src/components/home/EmptyState";
 import { Card } from "../../src/components/home/Card";
 import ProductDetailModal from "../../src/components/ProductDetailModal";
-import { Item } from "../../src/types";
 
 export default function HomeScreen() {
   const theme = useColorScheme();
   const light = theme !== "dark";
   const navigation = useNavigation();
+  
+  // Use central state management
+  const { addLikedItem, addToWishlist, addToCart } = useAppState();
 
   const {
     items,
@@ -38,87 +43,99 @@ export default function HomeScreen() {
   } = useHomeScreenData();
 
   const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    null
-  );
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  // Add liked items management
-  const { addLikedItem, getLikedItems } = useLikedItems();
+  // 👉 Swipe Right will like the product
+  const handleSwipeRight = async (item: Item | Product) => {
+    try {
+      addLikedItem(item); // Update local state immediately
+      addToWishlist(item); // Also add to wishlist
+      
+      console.log('Item liked and added to wishlist');
+      
+    } catch (error: any) {
+      console.error("Failed to like item:", error);
+      Alert.alert("Error", "Failed to like item. Please try again.");
+    }
+  };
 
-  // Enhanced function to handle likes
-  const showDetailsWithAnimation = (item: Item) => {
-    swipeAnimations.showDetailsAnimation();
-    setSelectedProductId(item.id);
+  // 👉 Add to Cart handler for ProductDetailModal
+  const handleAddToCart = (product: Product, variant?: any) => {
+    try {
+      addToCart(product);
+      Alert.alert("Success", "Added to cart! 🛒");
+      console.log('Added to cart from modal:', product);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      Alert.alert("Error", "Failed to add to cart. Please try again.");
+    }
+  };
+
+  // 👉 Add to Wishlist handler for ProductDetailModal
+  const handleAddToWishlist = (product: Product, variant?: any) => {
+    try {
+      addToWishlist(product);
+      Alert.alert("Wishlist", "Added to wishlist!");
+      console.log('Added to wishlist from modal:', product);
+    } catch (error) {
+      console.error("Failed to add to wishlist:", error);
+      Alert.alert("Error", "Failed to add to wishlist. Please try again.");
+    }
+  };
+
+  // 👉 Open modal animation
+  const showDetailsWithAnimation = (item: Item | Product) => {
+    swipe.showDetailsAnimation();
+    // Use _id for Product, id for Item
+    const itemId = isProduct(item) ? item._id : item.id;
+    setSelectedProductId(itemId);
     setModalVisible(true);
   };
 
+  // 👉 Close modal
   const hideDetailsWithAnimation = () => {
-    swipeAnimations.hideDetailsAnimation();
+    swipe.hideDetailsAnimation();
     setModalVisible(false);
     setSelectedProductId(null);
   };
 
-  // Enhanced swipe handler to store liked items
-  const handleSwipeRight = (item: Item) => {
-    addLikedItem(item); // Store liked item
-    console.log("Liked item:", item.id);
-  };
+  // SINGLE swipe hook - ensure items are properly typed
+  const swipe = useSwipeAnimations(items, showDetailsWithAnimation, handleSwipeRight);
 
-  // Hook called only once — no duplication
-  const swipeAnimations = useSwipeAnimations(
-    items, 
-    showDetailsWithAnimation,
-    handleSwipeRight // Pass the like handler
-  );
-
-  // Header button handlers
+  // HEADER BUTTONS
   const handleSearchPress = () => {
-    // Navigate to search screen or show search modal
-    console.log("Search pressed");
-    // navigation.navigate('Search'); // Uncomment if you have a search screen
+    navigation.navigate("search" as never);
   };
 
   const handleNotificationsPress = () => {
-    // Navigate to notifications screen
-    console.log("Notifications pressed");
-    // navigation.navigate('Notifications'); // Uncomment if you have notifications screen
+    navigation.navigate("notifications" as never);
   };
 
   const handleLikedPress = () => {
-    // Navigate to liked items screen
-    console.log("Liked items pressed");
-    const likedItems = getLikedItems();
-    console.log("Liked items count:", likedItems.length);
-    // navigation.navigate('Liked', { likedItems }); // Uncomment if you have liked screen
+    navigation.navigate("wishlist" as never);
   };
 
   if (loading) return <LoadingState />;
-  if (items.length === 0)
-    return <EmptyState onClearFilters={clearFilters} />;
+  if (items.length === 0) return <EmptyState onClearFilters={clearFilters} />;
 
-  const currentItem = items[swipeAnimations.currentIndex];
-  const nextItem = items[(swipeAnimations.currentIndex + 1) % items.length];
+  const currentItem = items[swipe.currentIndex];
+  const nextItem = items[(swipe.currentIndex + 1) % items.length];
 
   return (
-    <SafeAreaView
-      style={[
-        styles.container,
-        { backgroundColor: light ? "#fff" : "#000" },
-      ]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: light ? "#fff" : "#000" }]}>
       <StatusBar
         barStyle={light ? "dark-content" : "light-content"}
         backgroundColor={light ? "#fff" : "#000"}
       />
 
-      {/* Enhanced Header with button handlers */}
-      <Header 
+      {/* HEADER */}
+      <Header
         onSearchPress={handleSearchPress}
         onNotificationsPress={handleNotificationsPress}
         onLikedPress={handleLikedPress}
       />
 
-      {/* Section Title */}
+      {/* TITLE */}
       <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
         <Text
           style={{
@@ -132,7 +149,7 @@ export default function HomeScreen() {
         </Text>
       </View>
 
-      {/* Filters */}
+      {/* FILTERS */}
       <View pointerEvents={isModalVisible ? "none" : "auto"}>
         <Filters
           filters={filters}
@@ -141,7 +158,7 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Card Stack */}
+      {/* CARD STACK */}
       <View style={styles.cardStack}>
         {nextItem && (
           <Card
@@ -150,9 +167,9 @@ export default function HomeScreen() {
             style={{
               opacity: 0.8,
               transform: [
-                { scale: swipeAnimations.nextCardAnimation },
+                { scale: swipe.nextCardAnimation },
                 {
-                  translateY: swipeAnimations.nextCardAnimation.interpolate({
+                  translateY: swipe.nextCardAnimation.interpolate({
                     inputRange: [0.9, 1],
                     outputRange: [40, 0],
                   }),
@@ -165,44 +182,40 @@ export default function HomeScreen() {
         {currentItem && (
           <Card
             item={currentItem}
-            style={swipeAnimations.animatedCardStyles}
-            likeOpacity={swipeAnimations.likeOpacity}
-            nopeOpacity={swipeAnimations.nopeOpacity}
-            panHandlers={swipeAnimations.panResponder.panHandlers}
+            style={swipe.animatedCardStyles}
+            likeOpacity={swipe.likeOpacity}
+            nopeOpacity={swipe.nopeOpacity}
+            panHandlers={swipe.panResponder.panHandlers}
           />
         )}
       </View>
 
-      {/* Undo Button */}
-      {swipeAnimations.canUndo && (
+      {/* UNDO SWIPE */}
+      {swipe.canUndo && (
         <Pressable
           style={[
             styles.undoButton,
             { backgroundColor: light ? "#f7f7f7" : "#111" },
-            swipeAnimations.lastSwipeDirection === "left"
-              ? { left: 30 }
-              : { right: 30 },
+            swipe.lastSwipeDirection === "left" ? { left: 30 } : { right: 30 },
           ]}
-          onPress={swipeAnimations.undoSwipe}
+          onPress={swipe.undoSwipe}
         >
           <Ionicons
-            name={
-              swipeAnimations.lastSwipeDirection === "left"
-                ? "arrow-redo"
-                : "arrow-undo"
-            }
+            name={swipe.lastSwipeDirection === "left" ? "arrow-redo" : "arrow-undo"}
             size={34}
             color={light ? "#111" : "#eee"}
           />
         </Pressable>
       )}
 
-      {/* Product Modal */}
+      {/* PRODUCT MODAL */}
       {selectedProductId && (
         <ProductDetailModal
           productId={selectedProductId}
           isVisible={isModalVisible}
           onClose={hideDetailsWithAnimation}
+          onAddToCart={handleAddToCart}
+          onAddToWishlist={handleAddToWishlist}
         />
       )}
     </SafeAreaView>
@@ -211,13 +224,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  cardStack: {
-    flex: 1,
-    alignItems: "center",
-    paddingTop: 20,
-  },
-
+  cardStack: { flex: 1, alignItems: "center", paddingTop: 20 },
   undoButton: {
     position: "absolute",
     bottom: 40,

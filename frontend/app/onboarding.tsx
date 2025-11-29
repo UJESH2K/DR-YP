@@ -13,6 +13,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useCustomRouter } from '../src/hooks/useCustomRouter';
 import { useAuthStore } from '../src/state/auth';
 import { useSettingsStore } from '../src/state/settings';
@@ -23,22 +24,22 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 const countryCurrencyOptions = [
-  { label: '🇮🇳 India (INR)', value: 'INR' },
-  { label: '🇺🇸 United States (USD)', value: 'USD' },
-  { label: '🇪🇺 Europe (EUR)', value: 'EUR' },
-  { label: '🇬🇧 United Kingdom (GBP)', value: 'GBP' },
-  { label: '🇯🇵 Japan (JPY)', value: 'JPY' },
-  { label: '🇨🇦 Canada (CAD)', value: 'CAD' },
-  { label: '🇦🇺 Australia (AUD)', value: 'AUD' },
-  { label: '🇸🇬 Singapore (SGD)', value: 'SGD' },
-  { label: '🇨🇭 Switzerland (CHF)', value: 'CHF' },
-  { label: '🇨🇳 China (CNY)', value: 'CNY' },
-  { label: '🇭🇰 Hong Kong (HKD)', value: 'HKD' },
-  { label: '🇦🇪 UAE (AED)', value: 'AED' },
-  { label: '🇸🇦 Saudi Arabia (SAR)', value: 'SAR' },
-  { label: '🇰🇷 South Korea (KRW)', value: 'KRW' },
-  { label: '🇧🇷 Brazil (BRL)', value: 'BRL' },
-  { label: '🇲🇽 Mexico (MXN)', value: 'MXN' },
+  { label: 'India (INR)', value: 'INR' },
+  { label: 'United States (USD)', value: 'USD' },
+  { label: 'Europe (EUR)', value: 'EUR' },
+  { label: 'United Kingdom (GBP)', value: 'GBP' },
+  { label: 'Japan (JPY)', value: 'JPY' },
+  { label: 'Canada (CAD)', value: 'CAD' },
+  { label: 'Australia (AUD)', value: 'AUD' },
+  { label: 'Singapore (SGD)', value: 'SGD' },
+  { label: 'Switzerland (CHF)', value: 'CHF' },
+  { label: 'China (CNY)', value: 'CNY' },
+  { label: 'Hong Kong (HKD)', value: 'HKD' },
+  { label: 'UAE (AED)', value: 'AED' },
+  { label: 'Saudi Arabia (SAR)', value: 'SAR' },
+  { label: 'South Korea (KRW)', value: 'KRW' },
+  { label: 'Brazil (BRL)', value: 'BRL' },
+  { label: 'Mexico (MXN)', value: 'MXN' },
 ];
 
 const colorOptions = [
@@ -80,7 +81,7 @@ const CountryList = ({ options, selectedValue, onSelectionChange, isDark }) => {
             {item.label}
           </Text>
           {selectedValue === item.value && (
-            <Text style={countryListStyles.checkmark}>✓</Text>
+            <Ionicons name="checkmark" size={18} color={isDark ? '#fff' : '#1a1a1a'} />
           )}
         </Pressable>
       )}
@@ -116,11 +117,6 @@ const createCountryListStyles = (isDark: boolean) => StyleSheet.create({
   countryTextSelected: {
     fontFamily: 'JosefinSans_500Medium',
     color: isDark ? '#fff' : '#1a1a1a',
-  },
-  checkmark: {
-    fontSize: 16,
-    color: isDark ? '#fff' : '#1a1a1a',
-    fontWeight: 'bold',
   },
 });
 
@@ -362,7 +358,7 @@ export default function Onboarding() {
                 >
                   {selectedColors.includes(item.id) && (
                     <View style={styles.colorSelection}>
-                      <Text style={styles.checkIcon}>✓</Text>
+                      <Ionicons name="checkmark" size={20} color="#fff" />
                     </View>
                   )}
                 </Pressable>
@@ -526,7 +522,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   stepTitle: {
     fontSize: 28,
-    fontFamily: 'JosefinSans_500Medium',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: isDark ? '#fff' : '#1a1a1a',
     marginBottom: 8,
     letterSpacing: -0.5,
@@ -604,11 +600,6 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkIcon: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
   footer: {
     flexDirection: 'row',
     padding: 24,
@@ -637,7 +628,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 16,
-    fontFamily: 'JosefinSans_500Medium',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: isDark ? '#000' : '#ffffff',
   },
   primaryButtonDisabled: {

@@ -6,16 +6,35 @@ import {
   ScrollView,
   Pressable,
   StatusBar,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/state/auth';
+import { useFonts } from 'expo-font';
+import {
+  JosefinSans_400Regular,
+  JosefinSans_500Medium,
+  JosefinSans_600SemiBold,
+} from '@expo-google-fonts/josefin-sans';
+import {
+  CormorantGaramond_700Bold,
+} from '@expo-google-fonts/cormorant-garamond';
 
+// ===================== PROFILE SCREEN =====================
 export default function ProfileScreen() {
   const router = useCustomRouter();
   const { user, isAuthenticated, isGuest, guestId, logout } = useAuthStore();
+
+  // Load fonts
+  const [fontsLoaded] = useFonts({
+    JosefinSans_400Regular,
+    JosefinSans_500Medium,
+    JosefinSans_600SemiBold,
+    CormorantGaramond_700Bold,
+  });
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -25,7 +44,7 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/login'); // Go to login after logout
+          router.replace('/login');
         },
       },
     ]);
@@ -42,34 +61,53 @@ export default function ProfileScreen() {
     { id: 'about', title: 'About', icon: <Ionicons name="information-circle-outline" size={22} color="#000" />, onPress: () => router.push('/account/about') },
   ];
 
+  // Show loader while fonts load
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#000" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // =============== GUEST VIEW ===============
   if (isGuest && !isAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <View style={styles.guestHeader}>
-          <Text style={styles.guestHeaderText}>Account</Text>
+
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Account</Text>
         </View>
-        <View style={styles.profileSection}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>G</Text>
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.profileSection}>
+            <View style={styles.avatarSmall}>
+              <Text style={styles.avatarLetter}>G</Text>
+            </View>
+
+            <Text style={styles.profileName}>Guest User</Text>
+            {guestId && <Text style={styles.profileEmail}>ID: {guestId}</Text>}
           </View>
-          <Text style={styles.profileName}>Guest User</Text>
-          {guestId && <Text style={styles.profileEmail}>ID: {guestId}</Text>}
-        </View>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
           <View style={styles.menuSection}>
             <Pressable style={styles.menuItem} onPress={() => router.push('/account/orders')}>
-              <View style={styles.menuItemLeft}>
-                <Text style={styles.menuItemIcon}><MaterialIcons name="local-shipping" size={22} color="#000" /></Text>
+              <View style={styles.rowLeft}>
+                <MaterialIcons name="local-shipping" size={22} color="#000" />
                 <Text style={styles.menuItemTitle}>My Orders</Text>
               </View>
-              <Text style={styles.menuItemArrow}>›</Text>
+              <Text style={styles.arrow}>›</Text>
             </Pressable>
           </View>
-          <View style={styles.guestCtaSection}>
-            <Text style={styles.guestCtaText}>Want to save your preferences and orders?</Text>
+
+          <View style={styles.guestBox}>
+            <Text style={styles.guestText}>Save your orders & preferences</Text>
             <Pressable style={styles.signInButton} onPress={() => router.push('/login')}>
-              <Text style={styles.signInButtonText}>Sign In or Create Account</Text>
+              <Text style={styles.signInText}>Sign In / Create Account</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -77,22 +115,24 @@ export default function ProfileScreen() {
     );
   }
 
-  // Existing authenticated user view
+  // =============== AUTH VIEW ===============
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Account</Text>
+
+        {/* MINIMAL CART ICON (replaces emoji) */}
         <Pressable onPress={() => router.push('/cart')}>
-          <Text style={{ fontSize: 31, color: '#000' }}>🛒</Text>
+          <Ionicons name="cart-outline" size={24} color="#000" />
         </Pressable>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <Pressable style={styles.profileSection} onPress={() => router.push('/account/profile')}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+          <View style={styles.avatarSmall}>
+            <Text style={styles.avatarLetter}>{user.name.charAt(0).toUpperCase()}</Text>
           </View>
           <Text style={styles.profileName}>{user.name}</Text>
           <Text style={styles.profileEmail}>{user.email}</Text>
@@ -101,196 +141,159 @@ export default function ProfileScreen() {
         <View style={styles.menuSection}>
           {menuItems.map((item) => (
             <Pressable key={item.id} style={styles.menuItem} onPress={item.onPress}>
-              <View style={styles.menuItemLeft}>
-                <Text style={styles.menuItemIcon}>{item.icon}</Text>
+              <View style={styles.rowLeft}>
+                {item.icon}
                 <Text style={styles.menuItemTitle}>{item.title}</Text>
               </View>
-              <Text style={styles.menuItemArrow}>›</Text>
+              <Text style={styles.arrow}>›</Text>
             </Pressable>
           ))}
         </View>
 
-        <View style={styles.signOutSection}>
+        <View style={styles.signOutBox}>
           <Pressable style={styles.signOutButton} onPress={handleLogout}>
             <Text style={styles.signOutText}>Sign Out</Text>
           </Pressable>
         </View>
 
-        <View style={styles.bottomSpacing} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// =============== STYLES ===============
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  header: {
-    flexDirection: 'row',
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 10,
-    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'JosefinSans_400Regular',
+  },
+
+  // HEADER
+  header: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#eaeaea',
+    borderBottomColor: '#eee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
     color: '#000',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
-  content: {
-    flex: 1,
-  },
+
+  // PROFILE SECTION
   profileSection: {
     alignItems: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
+    paddingVertical: 28,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f2f2f2',
   },
-  profileAvatar: {
-    width: 80,
-    height: 80,
+  avatarSmall: {
+    width: 72,
+    height: 72,
     borderRadius: 40,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
+    backgroundColor: '#f3f3f3',
     justifyContent: 'center',
-    marginBottom: 15,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  profileAvatarText: {
+  avatarLetter: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontFamily: 'CormorantGaramond_700Bold',
+    color: '#000',
   },
   profileName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 4,
+    fontSize: 20,
+    fontFamily: 'JosefinSans_600SemiBold',
+    color: '#000',
   },
   profileEmail: {
-    fontSize: 16,
-    color: '#666666',
-    fontWeight: '400',
+    fontSize: 14,
+    marginTop: 4,
+    color: '#666',
+    fontFamily: 'JosefinSans_400Regular',
   },
+
+  // MENU SECTION
   menuSection: {
-    paddingHorizontal: 20,
+    marginTop: 10,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  menuItemLeft: {
+    borderBottomColor: '#f2f2f2',
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  menuItemIcon: {
-    fontSize: 20,
-    marginRight: 15,
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
   menuItemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
+    fontSize: 15,
+    color: '#000',
+    fontFamily: 'JosefinSans_500Medium',
   },
-  menuItemArrow: {
+  arrow: {
     fontSize: 20,
-    color: '#cccccc',
-    fontWeight: '300',
+    color: '#bbb',
   },
-  signOutSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
+
+  // SIGN OUT
+  signOutBox: {
+    padding: 20,
   },
   signOutButton: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f6f6f6',
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
   },
   signOutText: {
-    color: '#ff4444',
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
+    fontSize: 15,
+    color: '#ff3b30',
   },
-  bottomSpacing: {
-    height: 40,
-  },
-  // Guest view styles
-  guestHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 10,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eaeaea',
-  },
-  guestHeaderText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  guestView: { // This style is no longer used directly for the main layout, replaced by profileSection and guestCtaSection
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  guestSubtitle: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  guestButton: { // No longer needed as it's part of menuItems
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    marginBottom: 10,
-    width: '100%',
+
+  // GUEST CTA
+  guestBox: {
+    padding: 30,
     alignItems: 'center',
   },
-  guestButtonText: { // No longer needed
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '600',
+  guestText: {
+    fontSize: 15,
+    fontFamily: 'JosefinSans_400Regular',
+    color: '#555',
+    marginBottom: 14,
   },
   signInButton: {
     backgroundColor: '#000',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 50,
+    borderRadius: 10,
   },
-  signInButtonText: {
+  signInText: {
+    fontSize: 15,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  guestCtaSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    marginTop: 20,
-  },
-  guestCtaText: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 15,
+    fontFamily: 'JosefinSans_600SemiBold',
   },
 });

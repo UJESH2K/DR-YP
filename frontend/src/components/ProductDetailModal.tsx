@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from "react";
+// src/components/ProductDetailModal.tsx
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  memo,
+} from "react";
 import {
   View,
   Text,
@@ -16,10 +23,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { FlatList } from "react-native-gesture-handler";
-import { apiCall } from "../lib/api";
+import { productApi } from "../lib/api";
+
 import { Product, ProductVariant } from "../types";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get(
+  "window"
+);
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.42;
 
 const API_BASE_URL =
@@ -73,7 +83,7 @@ const ProductDetailModal: React.FC<Props> = ({
     });
 
     return () => handler.remove();
-  }, [isVisible]);
+  }, [isVisible, onClose]);
 
   /* RESET STATE WHEN CLOSING */
   useEffect(() => {
@@ -103,22 +113,23 @@ const ProductDetailModal: React.FC<Props> = ({
         useNativeDriver: true,
       }).start();
     }
-  }, [isVisible, productId]);
+  }, [isVisible, productId, detailsPosition]);
 
   const loadProduct = async (id: string) => {
     try {
       setLoading(true);
-      const p = await apiCall(`/api/products/${id}`);
+      const p = await productApi.getProduct(id);
       setProduct(p);
       setDisplayImages(p.images || []);
-      
+
       // Auto-select first color if available
       const colorOption = p.options?.find((o: any) => o.name === "Color");
       if (colorOption?.values?.length > 0) {
         setSelectedColor(colorOption.values[0]);
       }
-    } catch {
-      Alert.alert("Error", "Failed to load product.");
+    } catch (error: any) {
+      console.error('Failed to load product:', error);
+      Alert.alert("Error", error.message || "Failed to load product.");
       onClose();
     } finally {
       setLoading(false);
@@ -133,10 +144,10 @@ const ProductDetailModal: React.FC<Props> = ({
     let newDisplayImages: string[] = product.images || [];
 
     if (selectedColor) {
-      variant = product.variants?.find(
-        (v) => v.options.Color === selectedColor
-      ) || null;
-      
+      variant =
+        product.variants?.find((v) => v.options.Color === selectedColor) ||
+        null;
+
       if (variant?.images?.length) {
         newDisplayImages = variant.images;
       }
@@ -145,8 +156,7 @@ const ProductDetailModal: React.FC<Props> = ({
     setSelectedVariant(variant);
     setDisplayImages(newDisplayImages);
     setActiveImageIndex(0);
-    
-    // Use setTimeout to ensure the scroll happens after state update
+
     setTimeout(() => {
       imageFlatListRef.current?.scrollToIndex({
         index: 0,
@@ -160,8 +170,12 @@ const ProductDetailModal: React.FC<Props> = ({
     (e: any) => {
       const contentOffsetX = e.nativeEvent.contentOffset.x;
       const newIndex = Math.round(contentOffsetX / SCREEN_WIDTH);
-      
-      if (newIndex !== activeImageIndex && newIndex >= 0 && newIndex < displayImages.length) {
+
+      if (
+        newIndex !== activeImageIndex &&
+        newIndex >= 0 &&
+        newIndex < displayImages.length
+      ) {
         setActiveImageIndex(newIndex);
       }
     },
@@ -171,53 +185,63 @@ const ProductDetailModal: React.FC<Props> = ({
   /* ADD TO CART HANDLER */
   const handleAddToCart = useCallback(() => {
     if (!product) return;
+
+    console.log('Add to cart clicked:', product);
     
     if (onAddToCart) {
+      console.log('Calling onAddToCart handler');
       onAddToCart(product, selectedVariant);
     } else {
       Alert.alert("Success", "Added to cart!");
-      // Here you would typically dispatch to your cart context or state management
-      console.log("Add to cart:", product, selectedVariant);
+      console.log("No onAddToCart handler - Add to cart:", product, selectedVariant);
     }
   }, [product, selectedVariant, onAddToCart]);
 
   /* LIKE BUTTON HANDLER */
   const handleLike = useCallback(() => {
     if (!product) return;
+
+    console.log('Add to wishlist clicked:', product);
     
     if (onAddToWishlist) {
+      console.log('Calling onAddToWishlist handler');
       onAddToWishlist(product, selectedVariant);
     } else {
-      Alert.alert("Wishlist", "Added to wishlist ❤️");
-      // Here you would typically dispatch to your wishlist context or state management
-      console.log("Add to wishlist:", product, selectedVariant);
+      Alert.alert("Wishlist", "Added to wishlist!");
+      console.log("No onAddToWishlist handler - Add to wishlist:", product, selectedVariant);
     }
   }, [product, selectedVariant, onAddToWishlist]);
 
   /* RENDER IMAGE ITEM - OPTIMIZED */
-  const renderImageItem = useCallback(({ item }: { item: string }) => (
-    <View style={styles.imageWrapper}>
-      <MemoImage uri={`${API_BASE_URL}${item}`} />
-    </View>
-  ), []);
+  const renderImageItem = useCallback(
+    ({ item }: { item: string }) => (
+      <View style={styles.imageWrapper}>
+        <MemoImage uri={`${API_BASE_URL}${item}`} />
+      </View>
+    ),
+    []
+  );
 
   /* RENDER DOT INDICATOR - OPTIMIZED */
-  const renderDot = useCallback((_: any, index: number) => (
-    <View
-      key={index}
-      style={[
-        styles.dot,
-        index === activeImageIndex && styles.dotActive,
-      ]}
-    />
-  ), [activeImageIndex]);
+  const renderDot = useCallback(
+    (_: any, index: number) => (
+      <View
+        key={index}
+        style={[styles.dot, index === activeImageIndex && styles.dotActive]}
+      />
+    ),
+    [activeImageIndex]
+  );
 
   if (!isVisible) return null;
 
   if (loading || !product) {
     return (
       <Animated.View
-        style={[styles.container, { transform: [{ translateY: detailsPosition }] }]}
+        style={[
+          styles.container,
+          { transform: [{ translateY: detailsPosition }] },
+        ]}
       >
         <ActivityIndicator size="large" style={{ marginTop: 100 }} />
       </Animated.View>
@@ -286,7 +310,7 @@ const ProductDetailModal: React.FC<Props> = ({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         style={styles.detailsScrollView}
-        removeClippedSubviews={false} // Changed to false for better performance
+        removeClippedSubviews={false}
         nestedScrollEnabled={true}
       >
         <View style={styles.infoSection}>
@@ -302,7 +326,10 @@ const ProductDetailModal: React.FC<Props> = ({
           {colorOption && (
             <View style={{ marginBottom: 20 }}>
               <Text
-                style={[styles.optionTitle, { color: light ? "#111" : "#eee" }]}
+                style={[
+                  styles.optionTitle,
+                  { color: light ? "#111" : "#eee" },
+                ]}
               >
                 Available Colors
               </Text>
@@ -325,7 +352,8 @@ const ProductDetailModal: React.FC<Props> = ({
                     <Text
                       style={[
                         styles.optionBtnText,
-                        selectedColor === color && styles.optionBtnTextActive,
+                        selectedColor === color &&
+                          styles.optionBtnTextActive,
                       ]}
                     >
                       {color}
@@ -371,7 +399,12 @@ const ProductDetailModal: React.FC<Props> = ({
           </View>
 
           {/* DESCRIPTION */}
-          <Text style={[styles.description, { color: light ? "#444" : "#ccc" }]}>
+          <Text
+            style={[
+              styles.description,
+              { color: light ? "#444" : "#ccc" },
+            ]}
+          >
             {product.description}
           </Text>
         </View>

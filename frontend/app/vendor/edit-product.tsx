@@ -1,11 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Button, Alert, ActivityIndicator, Switch, Image } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { MediaTypeOptions } from 'expo-image-picker';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  useColorScheme,
+  Switch,
+  Image,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { apiCall } from '../../src/lib/api';
+import * as ImagePicker from 'expo-image-picker';
+import { MediaTypeOptions } from 'expo-image-picker';
+
+// ---- FONTS ----
+import {
+  JosefinSans_400Regular,
+  JosefinSans_500Medium,
+  JosefinSans_600SemiBold,
+  useFonts as useJosefin,
+} from "@expo-google-fonts/josefin-sans";
 
 // Helper function to upload an image
 const uploadImage = async (uri) => {
@@ -39,6 +61,15 @@ const uploadImage = async (uri) => {
 };
 
 export default function EditProductScreen() {
+  const [fontsLoaded] = useJosefin({
+    JosefinSans_400Regular,
+    JosefinSans_500Medium,
+    JosefinSans_600SemiBold,
+  });
+
+  const theme = useColorScheme();
+  const light = theme !== "dark";
+
   const { id } = useLocalSearchParams();
   const router = useCustomRouter();
   const [product, setProduct] = useState(null);
@@ -240,26 +271,49 @@ export default function EditProductScreen() {
     }
   };
 
+  if (!fontsLoaded) return null;
+
   if (isLoading) {
-    return <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} size="large" />;
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: light ? "#fff" : "#000" }]}>
+        <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} size="large" />
+      </SafeAreaView>
+    );
   }
 
   if (!product) {
-    return <Text style={styles.errorText}>Could not load product data.</Text>;
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: light ? "#fff" : "#000" }]}>
+        <Text style={[styles.errorText, { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_400Regular" }]}>
+          Could not load product data.
+        </Text>
+      </SafeAreaView>
+    );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
-        <Text style={styles.title}>Edit Product</Text>
-        <TextInput style={styles.input} placeholder="Product Name" value={product.name} onChangeText={v => handleInputChange('name', v)} />
-        <TextInput style={styles.input} placeholder="Description" value={product.description} onChangeText={v => handleInputChange('description', v)} multiline />
-        <TextInput style={styles.input} placeholder="Brand" value={product.brand} onChangeText={v => handleInputChange('brand', v)} />
-        <TextInput style={styles.input} placeholder="Category" value={product.category} onChangeText={v => handleInputChange('category', v)} />
-        <TextInput style={styles.input} placeholder="Tags (comma-separated)" value={product.tags} onChangeText={v => handleInputChange('tags', v)} />
-        <TextInput style={styles.input} placeholder="Base Price" value={String(product.basePrice)} onChangeText={v => handleInputChange('basePrice', v)} keyboardType="numeric" />
-        <TextInput style={styles.input} placeholder="SKU" value={product.sku} onChangeText={v => handleInputChange('sku', v)} />
-        <TextInput style={styles.input} placeholder="Stock" value={String(product.stock)} onChangeText={v => handleInputChange('stock', v)} keyboardType="numeric" />
+    <SafeAreaView style={[styles.container, { backgroundColor: light ? "#fff" : "#000" }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollWrap}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text
+            style={[
+              styles.title,
+              { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_600SemiBold" },
+            ]}
+          >
+            Edit Product
+          </Text>
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="Product Name" value={product.name} onChangeText={v => handleInputChange('name', v)} />
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="Description" value={product.description} onChangeText={v => handleInputChange('description', v)} multiline />
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="Brand" value={product.brand} onChangeText={v => handleInputChange('brand', v)} />
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="Category" value={product.category} onChangeText={v => handleInputChange('category', v)} />
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="Tags (comma-separated)" value={product.tags} onChangeText={v => handleInputChange('tags', v)} />
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="Base Price" value={String(product.basePrice)} onChangeText={v => handleInputChange('basePrice', v)} keyboardType="numeric" />
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="SKU" value={product.sku} onChangeText={v => handleInputChange('sku', v)} />
+        <TextInput style={[styles.input, light ? styles.inputLight : styles.inputDark]} placeholder="Stock" value={String(product.stock)} onChangeText={v => handleInputChange('stock', v)} keyboardType="numeric" />
         
         <View style={styles.switchContainer}>
           <Text>Is Active</Text>
@@ -270,16 +324,28 @@ export default function EditProductScreen() {
         </View>
 
         <View style={styles.imageContainer}>
-          <Text style={styles.subTitle}>Product Images</Text>
+          <Text style={[styles.subTitle, { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_600SemiBold" }]}>Product Images</Text>
           <View style={styles.imageList}>
             {product.images && product.images.map((url, index) => (
               <View key={index} style={{ position: 'relative' }}>
                 <Image source={{ uri: url }} style={styles.image} />
-                <Button title="X" onPress={() => removeMainImage(index)} />
+                <Pressable
+                  style={[styles.secondaryButton, { width: 30, height: 30, paddingVertical: 0, margin: 5 }]}
+                  onPress={() => removeMainImage(index)}
+                >
+                  <Text style={[styles.secondaryButtonText, { fontSize: 12 }]}>X</Text>
+                </Pressable>
               </View>
             ))}
           </View>
-          <Button title="Add Images" onPress={addMainImage} />
+          <Pressable
+            style={[styles.primaryButton, { width: 'auto', alignSelf: 'flex-start' }]}
+            onPress={addMainImage}
+          >
+            <Text style={[styles.primaryButtonText, { fontFamily: "JosefinSans_600SemiBold" }]}>
+              Add Images
+            </Text>
+          </Pressable>
         </View>
         
         {/* Options & Variants Section */}
@@ -304,16 +370,36 @@ export default function EditProductScreen() {
                     value={value}
                     onChangeText={text => handleOptionValueChange(optionIndex, valueIndex, text)}
                   />
-                  <Button title="-" onPress={() => removeOptionValue(optionIndex, valueIndex)} color="gray" />
+                  <Pressable
+                    style={[styles.secondaryButton, { backgroundColor: 'gray', width: 30, height: 30, paddingVertical: 0 }]}
+                    onPress={() => removeOptionValue(optionIndex, valueIndex)}
+                  >
+                    <Text style={[styles.secondaryButtonText, { fontSize: 12 }]}>-</Text>
+                  </Pressable>
                 </View>
               ))}
-              <Button title="Add Value" onPress={() => addOptionValue(optionIndex)} />
+              <Pressable
+                style={[styles.primaryButton, { width: 'auto', alignSelf: 'flex-start' }]}
+                onPress={() => addOptionValue(optionIndex)}
+              >
+                <Text style={[styles.primaryButtonText, { fontFamily: "JosefinSans_600SemiBold" }]}>Add Value</Text>
+              </Pressable>
             </View>
           ))}
-          <Button title="Add Option" onPress={addOption} />
+          <Pressable
+            style={[styles.primaryButton, { width: 'auto', alignSelf: 'flex-start' }]}
+            onPress={addOption}
+          >
+            <Text style={[styles.primaryButtonText, { fontFamily: "JosefinSans_600SemiBold" }]}>Add Option</Text>
+          </Pressable>
 
           <View style={{ marginTop: 20 }}>
-            <Button title="Generate Variants" onPress={generateVariants} />
+            <Pressable
+              style={[styles.primaryButton, { width: 'auto', alignSelf: 'flex-start' }]}
+              onPress={generateVariants}
+            >
+              <Text style={[styles.primaryButtonText, { fontFamily: "JosefinSans_600SemiBold" }]}>Generate Variants</Text>
+            </Pressable>
           </View>
         </View>
 
@@ -351,29 +437,106 @@ export default function EditProductScreen() {
                   {variant.images.map((imgUrl, imgIndex) => (
                     <View key={imgIndex} style={{ position: 'relative' }}>
                       <Image source={{ uri: imgUrl }} style={styles.image} />
-                      <Button title="X" onPress={() => removeVariantImage(index, imgIndex)} />
+                      <Pressable
+                        style={[styles.secondaryButton, { width: 30, height: 30, paddingVertical: 0, margin: 5 }]}
+                        onPress={() => removeVariantImage(index, imgIndex)}
+                      >
+                        <Text style={[styles.secondaryButtonText, { fontSize: 12 }]}>X</Text>
+                      </Pressable>
                     </View>
                   ))}
                 </View>
-                <Button title="Add Variant Image" onPress={() => addVariantImage(index)} />
+                <Pressable
+                  style={[styles.primaryButton, { width: 'auto', alignSelf: 'flex-start' }]}
+                  onPress={() => addVariantImage(index)}
+                >
+                  <Text style={[styles.primaryButtonText, { fontFamily: "JosefinSans_600SemiBold" }]}>Add Variant Image</Text>
+                </Pressable>
               </View>
             ))}
           </View>
         )}
         
         <View style={styles.buttonContainer}>
-          <Button title="Save Changes" onPress={handleSubmit} disabled={isLoading} />
-          <Button title="Cancel" onPress={() => router.back()} color="red" />
+          <Pressable
+            style={[styles.primaryButton]}
+            onPress={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text
+                style={[
+                  styles.primaryButtonText,
+                  { fontFamily: "JosefinSans_600SemiBold" },
+                ]}
+              >
+                Save Changes
+              </Text>
+            )}
+          </Pressable>
+          <Pressable
+            style={[styles.secondaryButton]}
+            onPress={() => router.back()}
+          >
+            <Text
+              style={[
+                styles.secondaryButtonText,
+                { fontFamily: "JosefinSans_500Medium" },
+              ]}
+            >
+              Cancel
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
-  input: { borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 5, marginBottom: 10 },
+  container: { flex: 1 },
+
+  scrollWrap: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    flexGrow: 1,
+  },
+
+  title: {
+    fontSize: 26,
+    marginTop: 2,
+    marginBottom: 20,
+  },
+
+  input: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    fontSize: 15,
+    marginBottom: 12,
+  },
+
+  inputLight: {
+    backgroundColor: "#f7f7f7",
+    borderColor: "#ddd",
+    color: "#111",
+  },
+
+  inputDark: {
+    backgroundColor: "#111",
+    borderColor: "#333",
+    color: "#fff",
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    marginBottom: 12,
+  },
+
   switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -384,10 +547,13 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderRadius: 5,
   },
+
   subTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },
+
   imageContainer: { marginBottom: 20 },
   imageList: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   image: { width: 100, height: 100, borderRadius: 5, margin: 5, borderWidth: 1, borderColor: '#ccc' },
+
   optionsContainer: { marginVertical: 20 },
   optionCard: {
     padding: 15,
@@ -424,6 +590,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: 10,
   },
+
   variantsContainer: { marginVertical: 20 },
   variantCard: {
     padding: 15,
@@ -445,6 +612,36 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 10,
   },
+
   errorText: { textAlign: 'center', marginTop: 20, color: 'red' },
+
+  primaryButton: {
+    backgroundColor: "#4A6BFF",
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+
+  secondaryButton: {
+    backgroundColor: "#f7f7f7",
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+
+  secondaryButtonText: {
+    color: "#111",
+    fontSize: 16,
+  },
+
   buttonContainer: { marginTop: 20, flexDirection: 'row', justifyContent: 'space-around' },
 });

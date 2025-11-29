@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { useCustomRouter } from '../../src/hooks/useCustomRouter'
 
 export default function PaymentScreen() {
@@ -42,10 +43,10 @@ export default function PaymentScreen() {
 
   const getCardIcon = (brand: string) => {
     switch (brand) {
-      case 'Visa': return '💳'
-      case 'Mastercard': return '💳'
-      case 'PayPal': return '💰'
-      default: return '💳'
+      case 'Visa': return <Ionicons name="card-outline" size={24} color="#000" />
+      case 'Mastercard': return <Ionicons name="card-outline" size={24} color="#000" />
+      case 'PayPal': return <Ionicons name="logo-paypal" size={24} color="#000" />
+      default: return <Ionicons name="card-outline" size={24} color="#000" />
     }
   }
 
@@ -70,11 +71,11 @@ export default function PaymentScreen() {
       
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </Pressable>
         <Text style={styles.headerTitle}>Payment Methods</Text>
         <Pressable onPress={handleAddPayment} style={styles.addButton}>
-          <Text style={styles.addText}>+</Text>
+          <Ionicons name="add" size={24} color="#ffffff" />
         </Pressable>
       </View>
 
@@ -83,7 +84,9 @@ export default function PaymentScreen() {
           <View key={method.id} style={styles.paymentCard}>
             <View style={styles.paymentHeader}>
               <View style={styles.paymentInfo}>
-                <Text style={styles.paymentIcon}>{getCardIcon(method.brand)}</Text>
+                <View style={styles.paymentIconContainer}>
+                  {getCardIcon(method.brand)}
+                </View>
                 <View style={styles.paymentDetails}>
                   <Text style={styles.paymentBrand}>{method.brand}</Text>
                   <Text style={styles.paymentType}>{method.type}</Text>
@@ -124,7 +127,10 @@ export default function PaymentScreen() {
         ))}
         
         <View style={styles.securityInfo}>
-          <Text style={styles.securityTitle}>🔒 Security</Text>
+          <View style={styles.securityTitleContainer}>
+            <Ionicons name="lock-closed" size={20} color="#000000" />
+            <Text style={styles.securityTitle}>Security</Text>
+          </View>
           <Text style={styles.securityText}>
             Your payment information is encrypted and secure. We never store your full card details.
           </Text>
@@ -153,13 +159,9 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   addButton: {
@@ -169,11 +171,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  addText: {
-    fontSize: 20,
-    color: '#ffffff',
-    fontWeight: '300',
   },
   content: {
     flex: 1,
@@ -202,20 +199,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  paymentIcon: {
-    fontSize: 24,
+  paymentIconContainer: {
     marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   paymentDetails: {
     flex: 1,
   },
   paymentBrand: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   paymentType: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
   },
   defaultBadge: {
@@ -226,24 +225,26 @@ const styles = StyleSheet.create({
   },
   defaultText: {
     fontSize: 12,
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#ffffff',
-    fontWeight: '600',
   },
   cardInfo: {
     marginBottom: 12,
   },
   cardNumber: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'JosefinSans_500Medium',
     color: '#000000',
     marginBottom: 4,
   },
   cardExpiry: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
   },
   paymentEmail: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     marginBottom: 12,
   },
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   deleteText: {
@@ -274,14 +275,20 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 24,
   },
+  securityTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   securityTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
-    marginBottom: 8,
   },
   securityText: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     lineHeight: 20,
   },

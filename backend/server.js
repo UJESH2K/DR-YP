@@ -1,43 +1,24 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const morgan = 'morgan';
-const path = require('path'); // Import path module
+const path = require('path');
 const connectDatabase = require('./src/config/database');
-
-// Route imports
-const authRoutes = require('./src/routes/auth');
-const productRoutes = require('./src/routes/products');
-const vendorRoutes = require('./src/routes/vendors');
-const orderRoutes = require('./src/routes/orders');
-const likeRoutes = require('./src/routes/likes');
-const wishlistRoutes = require('./src/routes/wishlist');
-const paymentRoutes = require('./src/routes/payments');
-const userRoutes = require('./src/routes/users');
-const uploadRoutes = require('./src/routes/upload'); // Import the new upload route
-const analyticsRoutes = require('./src/routes/analytics'); // Import analytics routes
-const vendorAnalyticsRoutes = require('./src/routes/analytics/vendor');
 
 const app = express();
 
 // Middlewares
-// app.use(cors());
 app.use(cors({
-  origin: '*', // Allow all origins
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allow all methods
+  origin: '*',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   allowedHeaders: ['Content-Type', 'Authorization', 'x-guest-id'],
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-
-// Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Custom logging middleware to track API calls
+// Log middleware
 app.use((req, res, next) => {
-  console.log(`
-🔥 API CALL: ${req.method} ${req.path}`);
+  console.log(`🔥 API CALL: ${req.method} ${req.path}`);
   console.log(`📱 From: ${req.get('origin') || 'localhost'}`);
   if (req.body && Object.keys(req.body).length > 0) {
     console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
@@ -50,36 +31,33 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/vendors', vendorRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/likes', likeRoutes);
-app.use('/api/wishlist', wishlistRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/upload', uploadRoutes); // Use the upload route
-app.use('/api/analytics', analyticsRoutes); // Use the analytics route
-app.use('/api/analytics', vendorAnalyticsRoutes);
+const PORT = process.env.PORT || 5000;
 
-// Global error handler
-// eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ message: err.message || 'Server error' });
-});
-
-const PORT = process.env.PORT || 5000; // Backend runs on port 5000
-
-// Start server
+// ⬇️ START SERVER ONLY AFTER DB CONNECTS
 (async () => {
   try {
+    console.log("⏳ Connecting to MongoDB...");
     await connectDatabase(process.env.MONGO_URI);
-  } catch (error) {
-    console.warn('Starting server without database connection:', error.message);
-  }
-  app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT} and accessible from all interfaces`));
-})();
+    console.log("✅ MongoDB Connected!");
 
-module.exports = app;
+    // ⬇️ ROUTES MUST BE LOADED AFTER DB CONNECTS
+    app.use('/api/auth', require('./src/routes/auth'));
+    app.use('/api/products', require('./src/routes/products'));
+    app.use('/api/vendors', require('./src/routes/vendors'));
+    app.use('/api/orders', require('./src/routes/orders'));
+    app.use('/api/likes', require('./src/routes/likes'));
+    app.use('/api/wishlist', require('./src/routes/wishlist'));
+    app.use('/api/payments', require('./src/routes/payments'));
+    app.use('/api/users', require('./src/routes/users'));
+    app.use('/api/upload', require('./src/routes/upload'));
+    app.use('/api/analytics', require('./src/routes/analytics'));
+    app.use('/api/analytics', require('./src/routes/analytics/vendor'));
+
+    app.listen(PORT, '0.0.0.0', () =>
+      console.log(`🚀 Server running on port ${PORT}`)
+    );
+
+  } catch (error) {
+    console.error("❌ Failed to connect to MongoDB:", error.message);
+  }
+})();

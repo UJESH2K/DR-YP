@@ -1,210 +1,296 @@
-import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
-import { Animated, PanResponder } from 'react-native';
-import { SCREEN_WIDTH } from "../../src/constants/dimensions";
-import { useInteractionStore } from "../../src/state/interactions";
-import { useAuthStore } from '../../src/state/auth';
-import type { Item } from '../types';
-import { apiCall } from "../../src/lib/api";
-import { updateModel } from '../../src/lib/recommender';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  Image,
+  StatusBar,
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  Modal,
+  useColorScheme,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { apiCall } from '../../src/lib/api';
+import { rankItems } from '../../src/lib/recommender';
+import type { Item } from '../../src/types';
+import { mapProductsToItems } from '../../src/utils/productMapping';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
+import SearchLoadingState from '../../src/components/search/LoadingState';
+import { useCacheStore } from '../../src/state/cache';
+import { formatPrice } from '../../src/utils/formatting';
 
-export function useSwipeAnimations(
-    items: Item[], 
-    onShowDetails: (item: Item) => void,
-    onSwipeRight?: (item: Item) => void
-) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [isDetailsVisible, setIsDetailsVisible] = useState(false);
-  const [canUndo, setCanUndo] = useState(false);
-  const [lastSwipeDirection, setLastSwipeDirection] = useState<'left' | 'right' | null>(null);
-  
-  const position = useRef(new Animated.ValueXY()).current;
-  const nextCardAnimation = useRef(new Animated.Value(0.9)).current;
-  
-  const undoTimer = useRef<NodeJS.Timeout | null>(null);
-  
-  const { user } = useAuthStore();
-  const pushInteraction = useInteractionStore((s) => s.pushInteraction);
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
+export default function SearchScreen() {
+  const theme = useColorScheme();
+  const light = theme !== "dark";
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState<Item[]>([]);
+  const [trending, setTrending] = useState<Item[]>([]);
+
+  const {
+    categories: cachedCategories,
+    brands: cachedBrands,
+    setCategories: setCachedCategories,
+    setBrands: setCachedBrands,
+  } = useCacheStore();
+
+  const [brands, setBrands] = useState<string[]>(cachedBrands.data || []);
+  const [categories, setCategories] = useState<string[]>(cachedCategories.data || []);
+  const [colors, setColors] = useState<string[]>([]);
+  const [recommendations, setRecommendations] = useState<Item[]>([]);
+  const [recentSearches, setRecentSearches] = useState<{ query: string; image: string }[]>([]);
+
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  // ---------------- Fetch Initial ----------------
   useEffect(() => {
-    return () => {
-      if (undoTimer.current) {
-        clearTimeout(undoTimer.current);
-      }
-    };
+    fetchInitialData();
   }, []);
 
-  useEffect(() => {
-    setCurrentIndex(0);
-    position.setValue({ x: 0, y: 0 });
-    nextCardAnimation.setValue(0.9);
-    setCanUndo(false);
-    setLastSwipeDirection(null);
-  }, [items]);
+  const fetchInitialData = async () => {
+    try {
+      const now = Date.now();
 
-  const rotate = position.x.interpolate({ 
-    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], 
-    outputRange: ['-10deg', '0deg', '10deg'], 
-    extrapolate: 'clamp' 
-  });
-  
-  const likeOpacity = position.x.interpolate({ 
-    inputRange: [10, SCREEN_WIDTH / 4], 
-    outputRange: [0, 1], 
-    extrapolate: 'clamp' 
-  });
-  
-  const nopeOpacity = position.x.interpolate({ 
-    inputRange: [-SCREEN_WIDTH / 4, -10], 
-    outputRange: [1, 0], 
-    extrapolate: 'clamp' 
-  });
+      const productsPromise = apiCall('/api/products?limit=20');
 
-  const onDecision = useCallback((decision: 'like' | 'dislike') => {
-    if (isAnimating) return;
-    const currentItem = items && items.length > 0 ? items[currentIndex] : null;
-    if (!currentItem) return;
+      const brandsPromise =
+        cachedBrands.timestamp && now - cachedBrands.timestamp < CACHE_DURATION
+          ? Promise.resolve(cachedBrands.data)
+          : apiCall('/api/products/brands').then(data => {
+              if (Array.isArray(data)) setCachedBrands(data);
+              return data;
+            });
 
-    setIsAnimating(true);
-    setCanUndo(true);
-    setLastSwipeDirection(decision === 'like' ? 'right' : 'left');
-    
-    // Call the onSwipeRight callback when user likes an item
-    if (decision === 'like' && onSwipeRight) {
-      onSwipeRight(currentItem);
+      const categoriesPromise =
+        cachedCategories.timestamp && now - cachedCategories.timestamp < CACHE_DURATION
+          ? Promise.resolve(cachedCategories.data)
+          : apiCall('/api/products/categories').then(data => {
+              if (Array.isArray(data)) setCachedCategories(data);
+              return data;
+            });
+
+      const colorsPromise = apiCall('/api/products/colors');
+
+      const [products, fetchedBrands, fetchedCategories, fetchedColors] = await Promise.all([
+        productsPromise,
+        brandsPromise,
+        categoriesPromise,
+        colorsPromise,
+      ]);
+
+      if (Array.isArray(products)) {
+        const items = mapProductsToItems(products);
+        setTrending(items.slice(0, 10));
+        setRecommendations(rankItems(items).slice(0, 10));
+      }
+      if (Array.isArray(fetchedBrands)) setBrands(fetchedBrands);
+      if (Array.isArray(fetchedCategories)) setCategories(fetchedCategories);
+      if (Array.isArray(fetchedColors)) setColors(fetchedColors);
+    } catch (error) {
+      console.error("Failed to fetch initial data:", error);
+    } finally {
+      setInitialLoading(false);
     }
-    
-    pushInteraction({ 
-      itemId: currentItem.id, 
-      action: decision, 
-      at: Date.now(), 
-      tags: currentItem.tags, 
-      priceTier: currentItem.priceTier 
-    });
-    
-    sendInteraction(decision, currentItem.id, user?._id);
-    updateModel(decision, currentItem);
+  };
 
-    if (undoTimer.current) {
-      clearTimeout(undoTimer.current);
+  // ---------------- Main Search API ----------------
+  const fetchData = useCallback(async () => {
+    setIsSearching(true);
+    setResults([]);
+
+    let endpoint = '/api/products?';
+    const params = new URLSearchParams();
+
+    if (searchQuery) params.append('search', searchQuery);
+    if (selectedBrand) params.append('brand', selectedBrand);
+    if (selectedCategory) params.append('category', selectedCategory);
+    if (selectedColor) params.append('color', selectedColor);
+    if (minPrice) params.append('minPrice', minPrice);
+    if (maxPrice) params.append('maxPrice', maxPrice);
+
+    endpoint += params.toString();
+
+    try {
+      const products = await apiCall(endpoint);
+      const items = Array.isArray(products) ? mapProductsToItems(products) : [];
+      setResults(items);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setIsSearching(false);
     }
-    undoTimer.current = setTimeout(() => {
-      setCanUndo(false);
-      undoTimer.current = null;
-    }, 3000);
+  }, [searchQuery, selectedBrand, selectedCategory, selectedColor, minPrice, maxPrice]);
 
-    Animated.timing(nextCardAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-
-    const exitX = decision === 'like' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
-    Animated.timing(position, { 
-      toValue: { x: exitX, y: 0 }, 
-      duration: 300, 
-      useNativeDriver: false 
-    }).start(() => {
-      position.setValue({ x: 0, y: 0 });
-      nextCardAnimation.setValue(0.9);
-      setCurrentIndex(prev => {
-        if (!items || items.length === 0) return 0;
-        return (prev + 1) % items.length;
-      });
-      setIsAnimating(false);
-    });
-  }, [isAnimating, items, currentIndex, onSwipeRight, pushInteraction, user, nextCardAnimation, position]);
-
-  const undoSwipe = useCallback(() => {
-    if (!canUndo) return;
-
-    if (undoTimer.current) {
-      clearTimeout(undoTimer.current);
-      undoTimer.current = null;
-    }
-
-    setIsAnimating(true);
-    setCanUndo(false);
-    
-    const initialX = lastSwipeDirection === 'right' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
-    position.setValue({ x: initialX, y: 0 });
-
-    setCurrentIndex(prev => {
-      // Ensure we don't go below 0
-      return Math.max(0, prev - 1);
-    });
-
-    Animated.spring(position, {
-        toValue: { x: 0, y: 0 },
-        useNativeDriver: false
-    }).start(() => {
-        setIsAnimating(false);
-    });
-  }, [canUndo, lastSwipeDirection, position]);
-
-  const showDetailsAnimation = useCallback(() => {
-      setIsDetailsVisible(true);
-      Animated.spring(position, { 
-        toValue: { x: 0, y: -60 }, 
-        useNativeDriver: false 
-      }).start();
-  }, [position]);
-
-  const hideDetailsAnimation = useCallback(() => {
-      setIsDetailsVisible(false);
-      Animated.spring(position, { 
-        toValue: { x: 0, y: 0 }, 
-        useNativeDriver: false 
-      }).start();
-  }, [position]);
-
-  const panResponder = useMemo(() => 
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !isAnimating && !isDetailsVisible,
-      onMoveShouldSetPanResponder: (_, gesture) => !isDetailsVisible && (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5),
-      onPanResponderGrant: () => {
-        position.extractOffset();
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: position.x, dy: position.y }], 
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: (_, gesture) => {
-        position.flattenOffset();
-        if (isDetailsVisible) return;
-
-        if (gesture.dx > 120) onDecision('like');
-        else if (gesture.dx < -120) onDecision('dislike');
-        else if (gesture.dy < -100) {
-          const currentItem = items[currentIndex];
-          if(currentItem) onShowDetails(currentItem);
-        }
-        else {
-          Animated.spring(position, { 
-            toValue: { x: 0, y: 0 }, 
-            useNativeDriver: false 
-          }).start();
-        }
-      },
-    }), 
-    [isAnimating, isDetailsVisible, items, currentIndex, onDecision, onShowDetails, position]
+  // ---------------- UI Helpers ----------------
+  const renderProductCard = ({ item, large = false }: { item: Item; large?: boolean }) => (
+    <Pressable
+      style={large ? styles.largeProductCard : styles.productCard}
+      onPress={() => {
+        setSelectedProductIdForModal(item.id);
+        setIsModalVisible(true);
+      }}
+    >
+      <Image
+        source={{ uri: item.image }}
+        style={large ? styles.largeProductImage : styles.productImage}
+      />
+      <Text style={styles.productTitle}>{item.title}</Text>
+      <Text style={styles.productBrand}>{item.brand}</Text>
+      <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
+    </Pressable>
   );
 
-  return {
-    currentIndex,
-    position,
-    nextCardAnimation,
-    panResponder,
-    animatedCardStyles: {
-      transform: [...position.getTranslateTransform(), { rotate }],
-    },
-    likeOpacity,
-    nopeOpacity,
-    showDetailsAnimation,
-    hideDetailsAnimation,
-    isDetailsVisible,
-    undoSwipe,
-    canUndo,
-    lastSwipeDirection,
-  };
+  // ---------------- Render ----------------
+  if (initialLoading) return <SearchLoadingState />;
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: light ? "#fff" : "#000" }]}>
+      <StatusBar barStyle={light ? "dark-content" : "light-content"} />
+
+      {/* Search Bar */}
+      <View style={[styles.header, { backgroundColor: light ? "#fff" : "#000" }]}>
+        <View style={[styles.searchBarContainer, { backgroundColor: light ? "#f4f4f4" : "#111" }]}>
+          <TextInput
+            style={[styles.searchInput, { color: light ? "#111" : "#eee" }]}
+            placeholder="Search products..."
+            placeholderTextColor={light ? "#888" : "#666"}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={fetchData}
+          />
+          <Pressable onPress={fetchData}>
+            <Ionicons name="search" size={22} color={light ? "#666" : "#aaa"} />
+          </Pressable>
+        </View>
+
+        {/* Filter Icon */}
+        <Pressable onPress={() => setFilterModalVisible(true)}>
+          <Ionicons name="options-outline" size={26} color={light ? "#000" : "#fff"} />
+        </Pressable>
+      </View>
+
+      {/* MAIN PRODUCT LIST */}
+      <FlatList
+        data={results.length > 0 ? results : trending}
+        numColumns={2}
+        columnWrapperStyle={{ justifyContent: "space-between", paddingHorizontal: 20 }}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => renderProductCard({ item })}
+        ListHeaderComponent={
+          <Text style={[styles.sectionTitle, { color: light ? "#111" : "#eee" }]}>
+            {results.length > 0 ? "Search Results" : "Trending Now"}
+          </Text>
+        }
+        ListFooterComponent={<View style={{ height: 60 }} />}
+      />
+
+      {/* PRODUCT MODAL */}
+      <ProductDetailModal
+        productId={selectedProductIdForModal}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+      />
+    </SafeAreaView>
+  );
 }
+
+// ----------------------------------
+//             STYLES
+// ----------------------------------
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    gap: 12,
+    paddingVertical: 10,
+  },
+
+  searchBarContainer: {
+    flex: 1,
+    height: 42,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "JosefinSans_500Medium",
+  },
+
+  sectionTitle: {
+    fontSize: 22,
+    marginTop: 20,
+    marginBottom: 10,
+    paddingHorizontal: 20,
+    fontFamily: "JosefinSans_600SemiBold",
+  },
+
+  productCard: {
+    width: "48%",
+    marginBottom: 22,
+  },
+
+  productImage: {
+    width: "100%",
+    aspectRatio: 0.8,
+    borderRadius: 10,
+    backgroundColor: "#f4f4f4",
+  },
+
+  largeProductCard: {
+    width: 180,
+    marginRight: 14,
+  },
+
+  largeProductImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 10,
+    backgroundColor: "#f4f4f4",
+  },
+
+  productTitle: {
+    fontSize: 14,
+    marginTop: 8,
+    fontFamily: "JosefinSans_500Medium",
+    color: "#111",
+  },
+
+  productBrand: {
+    fontSize: 12,
+    marginTop: 1,
+    fontFamily: "JosefinSans_400Regular",
+    color: "#777",
+  },
+
+  productPrice: {
+    fontSize: 14,
+    marginTop: 4,
+    fontFamily: "CormorantGaramond_700Bold",
+    color: "#000",
+  },
+});

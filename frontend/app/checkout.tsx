@@ -16,7 +16,7 @@ import { useCartStore } from '../src/state/cart';
 import { useAuthStore } from '../src/state/auth';
 import { useToastStore } from '../src/state/toast';
 import { apiCall } from '../src/lib/api';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface ShippingAddress {
   name: string;
@@ -115,9 +115,12 @@ export default function CheckoutScreen() {
         onPress={() => setCheckoutFlow('marketplace')}
       >
         <View style={styles.flowOptionContent}>
-          <Text style={[styles.flowOptionTitle, checkoutFlow === 'marketplace' && styles.flowOptionTitleActive]}>
-            🏪 Marketplace
-          </Text>
+          <View style={styles.flowOptionTitleContainer}>
+            <MaterialCommunityIcons name="storefront" size={20} color="#000" />
+            <Text style={[styles.flowOptionTitle, checkoutFlow === 'marketplace' && styles.flowOptionTitleActive]}>
+              Marketplace
+            </Text>
+          </View>
           <Text style={styles.flowOptionDescription}>
             Direct purchase from Styl. Best prices, unified experience.
           </Text>
@@ -130,9 +133,12 @@ export default function CheckoutScreen() {
         onPress={() => setCheckoutFlow('affiliate')}
       >
         <View style={styles.flowOptionContent}>
-          <Text style={[styles.flowOptionTitle, checkoutFlow === 'affiliate' && styles.flowOptionTitleActive]}>
-            🔗 Brand Direct
-          </Text>
+          <View style={styles.flowOptionTitleContainer}>
+            <Ionicons name="link" size={20} color="#000" />
+            <Text style={[styles.flowOptionTitle, checkoutFlow === 'affiliate' && styles.flowOptionTitleActive]}>
+              Brand Direct
+            </Text>
+          </View>
           <Text style={styles.flowOptionDescription}>
             Redirect to brand websites. Support brands directly.
           </Text>
@@ -145,9 +151,12 @@ export default function CheckoutScreen() {
         onPress={() => setCheckoutFlow('aggregator')}
       >
         <View style={styles.flowOptionContent}>
-          <Text style={[styles.flowOptionTitle, checkoutFlow === 'aggregator' && styles.flowOptionTitleActive]}>
-            📦 Multi-Retailer
-          </Text>
+          <View style={styles.flowOptionTitleContainer}>
+            <MaterialCommunityIcons name="package" size={20} color="#000" />
+            <Text style={[styles.flowOptionTitle, checkoutFlow === 'aggregator' && styles.flowOptionTitleActive]}>
+              Multi-Retailer
+            </Text>
+          </View>
           <Text style={styles.flowOptionDescription}>
             Compare prices across retailers. Find best deals.
           </Text>
@@ -266,14 +275,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e9ecef',
   },
   backButton: {},
-  title: { fontSize: 20, fontWeight: 'bold' },
+  title: { fontSize: 20, fontFamily: 'JosefinSans_600SemiBold' },
   scrollView: { flex: 1 },
   section: {
     padding: 16,
     backgroundColor: '#fff',
     marginBottom: 8,
   },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontFamily: 'JosefinSans_600SemiBold', marginBottom: 16 },
   input: {
     borderWidth: 1,
     borderColor: '#dee2e6',
@@ -296,7 +305,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   paymentOptionActive: { backgroundColor: '#000' },
-  paymentOptionText: { marginTop: 4, fontWeight: '600' },
+  paymentOptionText: { marginTop: 4, fontFamily: 'JosefinSans_600SemiBold' },
   paymentNote: { fontSize: 12, color: '#6c757d', textAlign: 'center' },
   summaryRow: {
     flexDirection: 'row',
@@ -304,10 +313,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   summaryLabel: { fontSize: 16, color: '#495057' },
-  summaryValue: { fontSize: 16, fontWeight: '500' },
+  summaryValue: { fontSize: 16, fontFamily: 'JosefinSans_500Medium' },
   totalRow: { borderTopWidth: 1, borderTopColor: '#e9ecef', marginTop: 8, paddingTop: 8 },
-  totalLabel: { fontSize: 18, fontWeight: 'bold' },
-  totalValue: { fontSize: 18, fontWeight: 'bold' },
+  totalLabel: { fontSize: 18, fontFamily: 'JosefinSans_600SemiBold' },
+  totalValue: { fontSize: 18, fontFamily: 'CormorantGaramond_700Bold' },
   footer: {
     padding: 16,
     backgroundColor: '#fff',
@@ -320,11 +329,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
-  checkoutButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  checkoutButtonText: { color: '#fff', fontSize: 16, fontFamily: 'JosefinSans_600SemiBold' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+  emptyTitle: { fontSize: 20, fontFamily: 'JosefinSans_600SemiBold', marginBottom: 12 },
   continueShoppingButton: { backgroundColor: '#000', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 },
-  continueShoppingText: { color: '#fff', fontWeight: '600' },
+  continueShoppingText: { color: '#fff', fontFamily: 'JosefinSans_600SemiBold' },
   flowOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -341,11 +350,16 @@ const styles = StyleSheet.create({
   flowOptionContent: {
     flex: 1,
   },
+  flowOptionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   flowOptionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#1a1a1a',
-    marginBottom: 4,
   },
   flowOptionTitleActive: {
     color: '#000',
