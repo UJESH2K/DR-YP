@@ -6,15 +6,19 @@ import { Theme, getTheme } from '../lib/theme'
 interface ThemeStore {
   theme: Theme
   colors: ReturnType<typeof getTheme>
+  useSystemTheme: boolean
   toggleTheme: () => void
   setTheme: (theme: Theme) => void
+  setSystemTheme: (useSystemTheme: boolean) => void
+  initializeTheme: (systemTheme: Theme) => void
 }
 
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set, get) => ({
-      theme: 'dark',
-      colors: getTheme('dark'),
+      theme: 'light',
+      colors: getTheme('light'),
+      useSystemTheme: true,
       toggleTheme: () => {
         const newTheme = get().theme === 'light' ? 'dark' : 'light'
         set({
@@ -26,6 +30,17 @@ export const useThemeStore = create<ThemeStore>()(
         set({
           theme,
           colors: getTheme(theme),
+          useSystemTheme: false,
+        })
+      },
+      setSystemTheme: (useSystemTheme: boolean) => {
+        set({ useSystemTheme })
+      },
+      initializeTheme: (systemTheme: Theme) => {
+        set({
+          theme: systemTheme,
+          colors: getTheme(systemTheme),
+          useSystemTheme: true,
         })
       },
     }),

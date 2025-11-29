@@ -10,6 +10,7 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { useFocusEffect } from 'expo-router';
 import { apiCall } from '../../src/lib/api';
@@ -94,7 +95,7 @@ export default function OrdersScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>←</Text>
+            <Ionicons name="arrow-back" size={24} color="#000000" />
           </Pressable>
           <Text style={styles.headerTitle}>My Orders</Text>
           <View style={styles.placeholder} />
@@ -109,7 +110,7 @@ export default function OrdersScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>←</Text>
+            <Ionicons name="arrow-back" size={24} color="#000000" />
           </Pressable>
           <Text style={styles.headerTitle}>My Orders</Text>
           <View style={styles.placeholder} />
@@ -128,7 +129,7 @@ export default function OrdersScreen() {
       
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </Pressable>
         <Text style={styles.headerTitle}>My Orders</Text>
         <View style={styles.placeholder} />
@@ -164,13 +165,9 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   placeholder: {
@@ -207,15 +204,16 @@ const styles = StyleSheet.create({
   },
   orderId: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   orderStatus: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   orderDate: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     marginBottom: 12,
   },
@@ -224,6 +222,7 @@ const styles = StyleSheet.create({
   },
   orderItem: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#333333',
     marginBottom: 4,
   },
@@ -234,7 +233,7 @@ const styles = StyleSheet.create({
   },
   orderTotal: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'CormorantGaramond_700Bold',
     color: '#000000',
   },
   trackButton: {
@@ -246,7 +245,7 @@ const styles = StyleSheet.create({
   trackButtonText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   bottomSpacing: {
     height: 100,
@@ -254,6 +253,7 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666',
   },
   retryText: {

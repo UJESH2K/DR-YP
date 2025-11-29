@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { useAuthStore } from '../../src/state/auth';
 import { apiCall } from '../../src/lib/api';
@@ -95,7 +96,7 @@ export default function StyleScreen() {
       
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </Pressable>
         <Text style={styles.headerTitle}>Style Preference</Text>
         <View style={styles.placeholder} />

@@ -6,17 +6,38 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useAuthStore } from '../src/state/auth';
 import { apiCall } from '../src/lib/api';
+import { useAuthStore } from '../src/state/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// ---- FONTS ----
+import {
+  JosefinSans_400Regular,
+  JosefinSans_500Medium,
+  JosefinSans_600SemiBold,
+  useFonts as useJosefin,
+} from "@expo-google-fonts/josefin-sans";
+
 export default function VendorRegisterScreen() {
+  const [fontsLoaded] = useJosefin({
+    JosefinSans_400Regular,
+    JosefinSans_500Medium,
+    JosefinSans_600SemiBold,
+  });
+
+  const theme = useColorScheme();
+  const light = theme !== "dark";
+
   const { user, token, ...authActions } = useAuthStore();
+
   const [isLoading, setIsLoading] = useState(false);
 
   // User details
@@ -59,8 +80,10 @@ export default function VendorRegisterScreen() {
       if (response && response.token) {
         const { token, user } = response;
         authActions.updateUser(user);
+
         await AsyncStorage.setItem('user_token', token);
         await AsyncStorage.setItem('user_data', JSON.stringify(user));
+
         Alert.alert('Success', 'Vendor account created successfully!', [
           { text: 'OK', onPress: () => router.replace('/(vendor-tabs)/products') },
         ]);
@@ -74,82 +97,287 @@ export default function VendorRegisterScreen() {
     }
   };
 
+  if (!fontsLoaded) return null;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Become a Vendor</Text>
-          <Text style={styles.subtitle}>Create your storefront on DR-YP</Text>
-        </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: light ? "#fff" : "#000" }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollWrap}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ==================== BRAND HEADER ==================== */}
+          <View style={styles.headerWrap}>
+            <Text
+              style={[
+                styles.brand,
+                { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_600SemiBold" },
+              ]}
+            >
+              DR-YP
+            </Text>
 
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Your Account</Text>
-          <TextInput style={styles.input} placeholder="Your Full Name" value={ownerName} onChangeText={setOwnerName} />
-          <TextInput style={styles.input} placeholder="Your Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-        </View>
+            <Text
+              style={[
+                styles.title,
+                { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_600SemiBold" },
+              ]}
+            >
+              Become a Vendor
+            </Text>
 
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Your Business</Text>
-          <TextInput style={styles.input} placeholder="Business Name" value={vendorName} onChangeText={setVendorName} />
-          <TextInput style={styles.input} placeholder="Business Description" value={description} onChangeText={setDescription} multiline />
-          <TextInput style={styles.input} placeholder="Business Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <TextInput style={styles.input} placeholder="Website (Optional)" value={website} onChangeText={setWebsite} autoCapitalize="none" />
-        </View>
+            <Text
+              style={[
+                styles.subtitle,
+                { color: light ? "#555" : "#aaa", fontFamily: "JosefinSans_400Regular" },
+              ]}
+            >
+              Create your storefront on DR-YP
+            </Text>
+          </View>
 
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Business Address</Text>
-          <TextInput style={styles.input} placeholder="Street Address" value={street} onChangeText={setStreet} />
-          <TextInput style={styles.input} placeholder="City" value={city} onChangeText={setCity} />
-          <TextInput style={styles.input} placeholder="State / Province" value={state} onChangeText={setState} />
-          <TextInput style={styles.input} placeholder="ZIP / Postal Code" value={zipCode} onChangeText={setZipCode} />
-          <TextInput style={styles.input} placeholder="Country" value={country} onChangeText={setCountry} />
-        </View>
+          {/* ==================== FORM SECTIONS ==================== */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_600SemiBold" }]}>
+              Your Account
+            </Text>
 
-        <Pressable style={[styles.registerButton, isLoading && styles.disabledButton]} onPress={handleRegister} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.registerButtonText}>Create Vendor Account</Text>
-          )}
-        </Pressable>
-        
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Back to Login</Text>
-        </Pressable>
-      </ScrollView>
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Your Full Name"
+              value={ownerName}
+              onChangeText={setOwnerName}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Your Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Password"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_600SemiBold" }]}>
+              Your Business
+            </Text>
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Business Name"
+              value={vendorName}
+              onChangeText={setVendorName}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Business Description"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Business Phone"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Website (optional)"
+              value={website}
+              onChangeText={setWebsite}
+              autoCapitalize="none"
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: light ? "#111" : "#fff", fontFamily: "JosefinSans_600SemiBold" }]}>
+              Business Address
+            </Text>
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Street Address"
+              value={street}
+              onChangeText={setStreet}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="City"
+              value={city}
+              onChangeText={setCity}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="State / Province"
+              value={state}
+              onChangeText={setState}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="ZIP / Postal Code"
+              value={zipCode}
+              onChangeText={setZipCode}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+
+            <TextInput
+              style={[styles.input, light ? styles.inputLight : styles.inputDark]}
+              placeholder="Country"
+              value={country}
+              onChangeText={setCountry}
+              placeholderTextColor={light ? "#777" : "#aaa"}
+            />
+          </View>
+
+          {/* ==================== SUBMIT BUTTON ==================== */}
+          <Pressable
+            style={[styles.primaryButton]}
+            onPress={handleRegister}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text
+                style={[
+                  styles.primaryButtonText,
+                  { fontFamily: "JosefinSans_600SemiBold" },
+                ]}
+              >
+                Create Vendor Account
+              </Text>
+            )}
+          </Pressable>
+
+          {/* ==================== BACK BUTTON ==================== */}
+          <Pressable style={styles.footerBack} onPress={() => router.back()}>
+            <Text
+              style={[
+                styles.footerBackText,
+                { fontFamily: "JosefinSans_500Medium", color: light ? "#666" : "#aaa" },
+              ]}
+            >
+              Back to Login
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
+/* ================================================== */
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  scrollContent: { padding: 24 },
-  header: { alignItems: 'center', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#1a1a1a' },
-  subtitle: { fontSize: 16, color: '#666666', marginTop: 4 },
-  formSection: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1a1a1a', marginBottom: 12 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+  container: { flex: 1 },
+
+  scrollWrap: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    flexGrow: 1,
+  },
+
+  /* HEADER */
+  headerWrap: {
+    marginTop: 10,
+    marginBottom: 20,
+  },
+
+  brand: {
+    fontSize: 42,
+    letterSpacing: 3,
+  },
+
+  title: {
+    fontSize: 26,
+    marginTop: 2,
+  },
+
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+
+  /* SECTIONS */
+  section: {
+    marginBottom: 20,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
     marginBottom: 12,
   },
-  registerButton: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
+
+  input: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    alignItems: 'center',
+    borderWidth: 1,
+    fontSize: 15,
+    marginBottom: 12,
   },
-  registerButtonText: {
-    color: '#ffffff',
+
+  inputLight: {
+    backgroundColor: "#f7f7f7",
+    borderColor: "#ddd",
+    color: "#111",
+  },
+
+  inputDark: {
+    backgroundColor: "#111",
+    borderColor: "#333",
+    color: "#fff",
+  },
+
+  /* PRIMARY BUTTON */
+  primaryButton: {
+    backgroundColor: "#4A6BFF",
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  primaryButtonText: {
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
   },
-  disabledButton: { backgroundColor: '#cccccc' },
-  backButton: { marginTop: 16, alignItems: 'center' },
-  backButtonText: { color: '#666666' },
+
+  /* FOOTER BACK */
+  footerBack: {
+    marginTop: 14,
+    alignItems: "center",
+  },
+
+  footerBackText: {
+    fontSize: 15,
+  },
 });

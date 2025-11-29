@@ -10,6 +10,7 @@ import {
   Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useCustomRouter } from '../../src/hooks/useCustomRouter'
 
 export default function HelpScreen() {
@@ -45,33 +46,43 @@ export default function HelpScreen() {
     },
   ]
 
+  const getContactIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'chat': return <MaterialCommunityIcons name="chat" size={24} color="#000000" />
+      case 'email': return <MaterialCommunityIcons name="email" size={24} color="#000000" />
+      case 'phone': return <Ionicons name="call" size={24} color="#000000" />
+      case 'help': return <MaterialCommunityIcons name="help-circle" size={24} color="#000000" />
+      default: return null
+    }
+  }
+
   const contactOptions = [
     {
       id: 'chat',
       title: 'Live Chat',
       description: 'Chat with our support team',
-      icon: '💬',
+      icon: 'chat',
       action: () => Alert.alert('Live Chat', 'Live chat feature coming soon!'),
     },
     {
       id: 'email',
       title: 'Email Support',
       description: 'support@dryp.com',
-      icon: '📧',
+      icon: 'email',
       action: () => Linking.openURL('mailto:support@dryp.com'),
     },
     {
       id: 'phone',
       title: 'Phone Support',
       description: '+1 (555) 123-DRYP',
-      icon: '📞',
+      icon: 'phone',
       action: () => Linking.openURL('tel:+15551234379'),
     },
     {
       id: 'help-center',
       title: 'Help Center',
       description: 'Browse our knowledge base',
-      icon: '📚',
+      icon: 'help',
       action: () => Alert.alert('Help Center', 'Opening help center...'),
     },
   ]
@@ -86,7 +97,7 @@ export default function HelpScreen() {
       
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </Pressable>
         <Text style={styles.headerTitle}>Help & Support</Text>
         <View style={styles.placeholder} />
@@ -107,7 +118,9 @@ export default function HelpScreen() {
                 style={styles.contactCard}
                 onPress={option.action}
               >
-                <Text style={styles.contactIcon}>{option.icon}</Text>
+                <View style={styles.contactIconContainer}>
+                  {getContactIcon(option.icon)}
+                </View>
                 <Text style={styles.contactTitle}>{option.title}</Text>
                 <Text style={styles.contactDescription}>{option.description}</Text>
               </Pressable>
@@ -195,10 +208,6 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -241,9 +250,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
-  contactIcon: {
-    fontSize: 24,
+  contactIconContainer: {
     marginBottom: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   contactTitle: {
     fontSize: 14,

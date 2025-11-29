@@ -8,8 +8,9 @@ import { sendInteraction } from '../lib/api';
 import { updateModel } from '../lib/recommender';
 
 export function useSwipeAnimations(
-    items: Item[], 
-    onShowDetails: (item: Item) => void,
+  items: Item[], 
+  onShowDetails: (item: Item) => void,
+  onSwipeRight?: (item: Item) => void // Add this parameter
 ) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -41,9 +42,23 @@ export function useSwipeAnimations(
     setLastSwipeDirection(null);
   }, [items]);
 
-  const rotate = position.x.interpolate({ inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], outputRange: ['-10deg', '0deg', '10deg'], extrapolate: 'clamp' });
-  const likeOpacity = position.x.interpolate({ inputRange: [10, SCREEN_WIDTH / 4], outputRange: [0, 1], extrapolate: 'clamp' });
-  const nopeOpacity = position.x.interpolate({ inputRange: [-SCREEN_WIDTH / 4, -10], outputRange: [1, 0], extrapolate: 'clamp' });
+  const rotate = position.x.interpolate({ 
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2], 
+    outputRange: ['-10deg', '0deg', '10deg'], 
+    extrapolate: 'clamp' 
+  });
+  
+  const likeOpacity = position.x.interpolate({ 
+    inputRange: [10, SCREEN_WIDTH / 4], 
+    outputRange: [0, 1], 
+    extrapolate: 'clamp' 
+  });
+  
+  const nopeOpacity = position.x.interpolate({ 
+    inputRange: [-SCREEN_WIDTH / 4, -10], 
+    outputRange: [1, 0], 
+    extrapolate: 'clamp' 
+  });
 
   const onDecision = useCallback((decision: 'like' | 'dislike') => {
     if (isAnimating) return;
@@ -53,7 +68,20 @@ export function useSwipeAnimations(
     setIsAnimating(true);
     setCanUndo(true);
     setLastSwipeDirection(decision === 'like' ? 'right' : 'left');
-    pushInteraction({ itemId: currentItem.id, action: decision, at: Date.now(), tags: currentItem.tags, priceTier: currentItem.priceTier });
+    
+    // Call the onSwipeRight callback when user likes an item
+    if (decision === 'like' && onSwipeRight) {
+      onSwipeRight(currentItem);
+    }
+    
+    pushInteraction({ 
+      itemId: currentItem.id, 
+      action: decision, 
+      at: Date.now(), 
+      tags: currentItem.tags, 
+      priceTier: currentItem.priceTier 
+    });
+    
     sendInteraction(decision, currentItem.id, user?._id);
     updateModel(decision, currentItem);
 
@@ -72,7 +100,11 @@ export function useSwipeAnimations(
     }).start();
 
     const exitX = decision === 'like' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
-    Animated.timing(position, { toValue: { x: exitX, y: 0 }, duration: 300, useNativeDriver: false }).start(() => {
+    Animated.timing(position, { 
+      toValue: { x: exitX, y: 0 }, 
+      duration: 300, 
+      useNativeDriver: false 
+    }).start(() => {
       position.setValue({ x: 0, y: 0 });
       nextCardAnimation.setValue(0.9);
       setCurrentIndex(prev => {
@@ -81,7 +113,7 @@ export function useSwipeAnimations(
       });
       setIsAnimating(false);
     });
-  }, [isAnimating, items, currentIndex, pushInteraction, user, nextCardAnimation, position]);
+  }, [isAnimating, items, currentIndex, onSwipeRight, pushInteraction, user, nextCardAnimation, position]);
 
   const undoSwipe = useCallback(() => {
     if (!canUndo) return;
@@ -97,94 +129,66 @@ export function useSwipeAnimations(
     const initialX = lastSwipeDirection === 'right' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
     position.setValue({ x: initialX, y: 0 });
 
-    setCurrentIndex(prev => prev - 1);
+    setCurrentIndex(prev => {
+      const newIndex = prev > 0 ? prev - 1 : 0;
+      return newIndex;
+    });
 
     Animated.spring(position, {
-        toValue: { x: 0, y: 0 },
-        useNativeDriver: false
+      toValue: { x: 0, y: 0 },
+      useNativeDriver: false
     }).start(() => {
-        setIsAnimating(false);
+      setIsAnimating(false);
     });
-  }, [canUndo, lastSwipeDirection]);
+  }, [canUndo, lastSwipeDirection, position]);
 
   const showDetailsAnimation = useCallback(() => {
-      setIsDetailsVisible(true);
-      Animated.spring(position, { toValue: { x: 0, y: -60 }, useNativeDriver: false }).start();
+    setIsDetailsVisible(true);
+    Animated.spring(position, { 
+      toValue: { x: 0, y: -60 }, 
+      useNativeDriver: false 
+    }).start();
   }, [position]);
 
   const hideDetailsAnimation = useCallback(() => {
-      setIsDetailsVisible(false);
-      Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+    setIsDetailsVisible(false);
+    Animated.spring(position, { 
+      toValue: { x: 0, y: 0 }, 
+      useNativeDriver: false 
+    }).start();
   }, [position]);
 
+  const panResponder = useMemo(() => 
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !isAnimating && !isDetailsVisible,
+      onMoveShouldSetPanResponder: (_, gesture) => !isDetailsVisible && (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5),
+      onPanResponderGrant: () => {
+        position.extractOffset();
+      },
+      onPanResponderMove: Animated.event(
+        [null, { dx: position.x, dy: position.y }], 
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: (_, gesture) => {
+        position.flattenOffset();
+        if (isDetailsVisible) return;
 
-    const panResponder = useMemo(() => 
-
-
-      PanResponder.create({
-
-
-        onStartShouldSetPanResponder: () => !isAnimating && !isDetailsVisible,
-
-
-        onMoveShouldSetPanResponder: (_, gesture) => !isDetailsVisible && (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5),
-
-
-        onPanResponderGrant: () => {
-
-
-          position.extractOffset();
-
-
-        },
-
-
-        onPanResponderMove: Animated.event([null, { dx: position.x, dy: position.y }], { useNativeDriver: false }),
-
-
-        onPanResponderRelease: (_, gesture) => {
-
-
-          position.flattenOffset();
-
-
-          if (isDetailsVisible) return;
-
-
-  
-
-
-          if (gesture.dx > 120) onDecision('like');
-
-
-          else if (gesture.dx < -120) onDecision('dislike');
-
-
-          else if (gesture.dy < -100) {
-
-
-              const currentItem = items[currentIndex];
-
-
-              if(currentItem) onShowDetails(currentItem);
-
-
-          }
-
-
-          else Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
-
-
-        },
-
-
-      }), 
-
-
-      [isAnimating, isDetailsVisible, items, currentIndex, onDecision, onShowDetails]
-
-
-    );
+        if (gesture.dx > 120) onDecision('like');
+        else if (gesture.dx < -120) onDecision('dislike');
+        else if (gesture.dy < -100) {
+          const currentItem = items[currentIndex];
+          if (currentItem) onShowDetails(currentItem);
+        }
+        else {
+          Animated.spring(position, { 
+            toValue: { x: 0, y: 0 }, 
+            useNativeDriver: false 
+          }).start();
+        }
+      },
+    }), 
+    [isAnimating, isDetailsVisible, items, currentIndex, onDecision, onShowDetails, position]
+  );
 
   return {
     currentIndex,

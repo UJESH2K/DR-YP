@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     marginTop: 20,
     textAlign: 'center',

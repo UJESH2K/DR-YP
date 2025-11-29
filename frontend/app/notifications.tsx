@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#1a1a1a',
     textAlign: 'center',
   },

@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { useCustomRouter } from '../../src/hooks/useCustomRouter'
 
 export default function AddressesScreen() {
@@ -65,7 +66,7 @@ export default function AddressesScreen() {
       
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </Pressable>
         <Text style={styles.headerTitle}>Addresses</Text>
         <Pressable onPress={handleAddAddress} style={styles.addButton}>
@@ -132,13 +133,10 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
   },
   addButton: {
@@ -151,6 +149,7 @@ const styles = StyleSheet.create({
   },
   addText: {
     fontSize: 20,
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#ffffff',
     fontWeight: '300',
   },
@@ -184,6 +183,7 @@ const styles = StyleSheet.create({
   addressType: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     marginRight: 8,
   },
@@ -195,6 +195,7 @@ const styles = StyleSheet.create({
   },
   defaultText: {
     fontSize: 12,
+    fontFamily: 'JosefinSans_500Medium',
     color: '#ffffff',
     fontWeight: '600',
   },
@@ -214,6 +215,7 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'JosefinSans_500Medium',
     color: '#000000',
   },
   deleteText: {
@@ -222,16 +224,19 @@ const styles = StyleSheet.create({
   addressName: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#000000',
     marginBottom: 4,
   },
   addressLine: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     marginBottom: 2,
   },
   addressPhone: {
     fontSize: 14,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     marginTop: 4,
   },

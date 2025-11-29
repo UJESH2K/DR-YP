@@ -20,13 +20,13 @@ import { useToastStore } from '@/state/toast';
 import SingleSelectDropdown from '@/components/SingleSelectDropdown';
 
 const countryCurrencyOptions = [
-  { label: '🇮🇳 India (INR)', value: 'INR' },
-  { label: '🇺🇸 United States (USD)', value: 'USD' },
-  { label: '🇪🇺 Europe (EUR)', value: 'EUR' },
-  { label: '🇬🇧 United Kingdom (GBP)', value: 'GBP' },
-  { label: '🇯🇵 Japan (JPY)', value: 'JPY' },
-  { label: '🇨🇦 Canada (CAD)', value: 'CAD' },
-  { label: '🇦🇺 Australia (AUD)', value: 'AUD' },
+  { label: 'India (INR)', value: 'INR' },
+  { label: 'United States (USD)', value: 'USD' },
+  { label: 'Europe (EUR)', value: 'EUR' },
+  { label: 'United Kingdom (GBP)', value: 'GBP' },
+  { label: 'Japan (JPY)', value: 'JPY' },
+  { label: 'Canada (CAD)', value: 'CAD' },
+  { label: 'Australia (AUD)', value: 'AUD' },
 ];
 
 const NotificationToggle = ({ 
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#333333',
   },
   placeholder: {
@@ -309,12 +309,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#333333',
     marginBottom: 5,
   },
   sectionDescription: {
     fontSize: 13,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     marginBottom: 15,
   },
@@ -332,11 +333,12 @@ const styles = StyleSheet.create({
   },
   notificationLabel: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'JosefinSans_500Medium',
     color: '#333333',
   },
   notificationDescription: {
     fontSize: 12,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     marginTop: 2,
   },
@@ -377,7 +379,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: 'bold',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   modalOverlay: {
     flex: 1,
@@ -394,18 +396,20 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#333333',
     marginBottom: 10,
   },
   modalMessage: {
     fontSize: 15,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#666666',
     textAlign: 'center',
     marginBottom: 20,
   },
   modalPasswordPrompt: {
     fontSize: 15,
+    fontFamily: 'JosefinSans_400Regular',
     color: '#333333',
     marginBottom: 10,
   },
@@ -433,8 +437,8 @@ const styles = StyleSheet.create({
   },
   modalCancelButtonText: {
     fontSize: 16,
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#333333',
-    fontWeight: 'bold',
   },
   modalDeleteButton: {
     flex: 1,
@@ -446,7 +450,7 @@ const styles = StyleSheet.create({
   },
   modalDeleteButtonText: {
     fontSize: 16,
+    fontFamily: 'JosefinSans_600SemiBold',
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
 });

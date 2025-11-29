@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useCustomRouter } from '@/hooks/useCustomRouter';
 import { apiCall } from '@/lib/api';
 import { useToastStore } from '@/state/toast';
@@ -61,7 +62,7 @@ export default function ChangePasswordScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </Pressable>
         <Text style={styles.headerTitle}>Change Password</Text>
         <View style={styles.placeholder} />
@@ -131,10 +132,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 5,
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: '#333333',
   },
   headerTitle: {
     fontSize: 20,

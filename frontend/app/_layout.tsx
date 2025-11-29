@@ -2,62 +2,90 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/state/auth';
 import Toast from '../src/components/Toast';
+import CustomAlert from '../src/components/CustomAlert';
 import { useCustomRouter } from '../src/hooks/useCustomRouter';
+
+// ⭐ FONTS
+import {
+  useFonts,
+  CormorantGaramond_700Bold
+} from '@expo-google-fonts/cormorant-garamond';
+
+import {
+  JosefinSans_400Regular,
+  JosefinSans_500Medium,
+  JosefinSans_600SemiBold
+} from '@expo-google-fonts/josefin-sans';
+
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const { isAuthenticated, isGuest, user, loadUser } = useAuthStore();
-  const [appIsReady, setAppIsReady] = React.useState(false);
   const router = useCustomRouter();
+  const { isAuthenticated, isGuest, user, loadUser } = useAuthStore();
+
+  // ⭐ load fonts
+  const [fontsLoaded] = useFonts({
+    CormorantGaramond_700Bold,
+    JosefinSans_400Regular,
+    JosefinSans_500Medium,
+    JosefinSans_600SemiBold,
+  });
+
+  // ⭐ load user
+  const [userLoaded, setUserLoaded] = useState(false);
 
   useEffect(() => {
-    async function prepare() {
+    async function init() {
       try {
         await loadUser();
-      } catch (e) {
-        console.warn(e);
+      } catch (err) {
+        console.log(err);
       } finally {
-        setAppIsReady(true);
-        SplashScreen.hideAsync();
+        setUserLoaded(true);
       }
     }
-
-    prepare();
+    init();
   }, []);
 
+  // ⭐ hide splash only when BOTH are ready
   useEffect(() => {
-    if (appIsReady) {
-      if (isAuthenticated) {
-        const hasCompletedOnboarding =
-          user?.preferences &&
-          (user.preferences.categories.length > 0 ||
-            user.preferences.colors.length > 0 ||
-            user.preferences.brands.length > 0);
+    if (fontsLoaded && userLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, userLoaded]);
 
-        if (user?.role === 'vendor') {
-          router.replace('/(vendor-tabs)/products');
-        } else if (hasCompletedOnboarding) {
-          router.replace('/(tabs)/home');
-        } else {
-          router.replace('/onboarding');
-        }
-      } else if (isGuest) {
+  // ⭐ Only run navigation AFTER fonts + user are BOTH loaded
+  useEffect(() => {
+    if (!fontsLoaded || !userLoaded) return;
+
+    if (isAuthenticated) {
+      const done =
+        user?.preferences &&
+        (user.preferences.categories.length > 0 ||
+          user.preferences.colors.length > 0 ||
+          user.preferences.brands.length > 0);
+
+      if (user?.role === 'vendor') {
+        router.replace('/(vendor-tabs)/products');
+      } else if (done) {
         router.replace('/(tabs)/home');
       } else {
-        router.replace('/login');
+        router.replace('/onboarding');
       }
+    } else if (isGuest) {
+      router.replace('/(tabs)/home');
+    } else {
+      router.replace('/login');
     }
-  }, [isAuthenticated, isGuest, user, appIsReady]);
+  }, [fontsLoaded, userLoaded, isAuthenticated, isGuest, user]);
 
-
-  if (!appIsReady) {
-    return null; // Or a loading indicator
-  }
+  // ⭐ prevent layout until everything is ready — BUT hooks already executed (safe)
+  if (!fontsLoaded || !userLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'black' }}>

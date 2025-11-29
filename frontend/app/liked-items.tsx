@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
       },
       headerTitle: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontFamily: 'JosefinSans_600SemiBold',
         color: '#1a1a1a',
       },
       backButton: {},
@@ -167,11 +167,12 @@ const styles = StyleSheet.create({
       },
       itemBrand: {
         fontSize: 12,
+        fontFamily: 'JosefinSans_400Regular',
         color: '#888',
       },
       itemTitle: {
         fontSize: 16,
-        fontWeight: '600',
+        fontFamily: 'JosefinSans_600SemiBold',
         color: '#1a1a1a',
         marginVertical: 4,
       },
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
       removeText: {
         color: '#FF6B6B',
         fontSize: 14,
-        fontWeight: '600',
+        fontFamily: 'JosefinSans_600SemiBold',
       },
       emptyContainer: {
         flex: 1,
@@ -193,13 +194,14 @@ const styles = StyleSheet.create({
       },
       emptyTitle: {
         fontSize: 22,
-        fontWeight: 'bold',
+        fontFamily: 'JosefinSans_600SemiBold',
         color: '#1a1a1a',
         textAlign: 'center',
         marginBottom: 12,
       },
       emptySubtitle: {
         fontSize: 16,
+        fontFamily: 'JosefinSans_400Regular',
         color: '#666',
         textAlign: 'center',
       },
