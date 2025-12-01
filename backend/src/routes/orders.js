@@ -8,7 +8,7 @@ const router = express.Router();
 // @route   POST /api/orders
 // @desc    Create a new order (or multiple if items from different vendors)
 // @access  Public / Private
-router.post('/', identifyUser, async (req, res, next) => {
+router.post('/', protect, async (req, res, next) => {
   try {
     const { items, shippingAddress } = req.body;
     const userId = req.user ? req.user._id : null;
@@ -98,6 +98,20 @@ router.get('/vendor', protect, async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+});
+
+// @route   GET /api/orders/by-number/:orderNumber
+// @desc    Get a single order by order number
+// @access  Private
+router.get('/by-number/:orderNumber', protect, async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ orderNumber: req.params.orderNumber }).populate('items.product', 'name images brand');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.user.toString() !== req.user._id.toString() && req.user.role !== 'vendor') {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+    res.json(order);
+  } catch (error) { next(error); }
 });
 
 // @route   GET /api/orders/:id

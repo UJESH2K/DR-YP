@@ -120,7 +120,7 @@ export default function WishlistScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}><Text style={styles.headerTitle}>Wishlist</Text></View>
+        <View style={styles.header}><Text style={styles.headerTitle}>My Wishlist</Text></View>
         <ActivityIndicator size="large" style={{ flex: 1 }} />
       </SafeAreaView>
     );
@@ -130,7 +130,7 @@ export default function WishlistScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <View style={styles.header}><Text style={styles.headerTitle}>Wishlist</Text></View>
+        <View style={styles.header}><Text style={styles.headerTitle}>My Wishlist</Text></View>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
           <Text style={styles.emptySubtitle}>Items you like will appear here.</Text>
@@ -145,7 +145,9 @@ export default function WishlistScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <View style={styles.header}><Text style={styles.headerTitle}>Wishlist ({items.length})</Text></View>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Wishlist</Text>
+      </View>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -170,10 +172,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
     color: '#1a1a1a',
-    textAlign: 'center',
+    textAlign: 'left',
+    fontFamily: 'Zaloga',
   },
   listContainer: {
     padding: 16,
@@ -203,21 +205,21 @@ const styles = StyleSheet.create({
   },
   itemBrand: {
     fontSize: 12,
-    fontWeight: '600',
     color: '#888',
     marginBottom: 2,
+    fontFamily: 'Zaloga',
   },
   itemTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 4,
+    fontFamily: 'Zaloga',
   },
   itemPrice: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 10,
+    fontFamily: 'Zaloga',
   },
   itemActions: {
     flexDirection: 'row',
@@ -232,8 +234,8 @@ const styles = StyleSheet.create({
   },
   addToCartText: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontFamily: 'Zaloga',
   },
   removeButton: {
     paddingHorizontal: 16,
@@ -245,8 +247,8 @@ const styles = StyleSheet.create({
   },
   removeText: {
     color: '#FF6B6B',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontFamily: 'Zaloga',
   },
   emptyContainer: {
     flex: 1,
@@ -256,16 +258,17 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
     color: '#1a1a1a',
     textAlign: 'center',
     marginBottom: 12,
+    fontFamily: 'Zaloga',
   },
   emptySubtitle: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
     marginBottom: 32,
+    fontFamily: 'Zaloga',
   },
   discoverButton: {
     backgroundColor: '#1a1a1a',
@@ -276,6 +279,6 @@ const styles = StyleSheet.create({
   discoverText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Zaloga',
   },
 });

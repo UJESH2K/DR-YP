@@ -11,7 +11,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   push: (path) => {
     set(state => {
       const newHistory = [path, ...state.history.filter(p => p !== path)];
-      return { history: newHistory.slice(0, 4) }; // Keep last 4 for back logic
+      return { history: newHistory.slice(0, 10) }; // Keep last 10 for back logic
     });
   },
   goBack: () => {
@@ -19,7 +19,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
     if (history.length > 1) {
       const newHistory = history.slice(1);
       set({ history: newHistory });
-      return newHistory[0] || '/';
+      return newHistory[0] || null;
     }
     return null; // No history to go back to
   },

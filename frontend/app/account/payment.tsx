@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,69 +7,107 @@ import {
   Pressable,
   StatusBar,
   Alert,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useCustomRouter } from '../../src/hooks/useCustomRouter'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
+import { apiCall } from '../../src/lib/api';
+import SwipeableRow from '../../src/components/SwipeableRow';
+import { useFocusEffect } from 'expo-router';
 
 export default function PaymentScreen() {
-  const router = useCustomRouter()
+  const router = useCustomRouter();
+  const [paymentMethods, setPaymentMethods] = useState([]);
 
-  const [paymentMethods] = useState([
-    {
-      id: 1,
-      type: 'Credit Card',
-      brand: 'Visa',
-      last4: '4242',
-      expiry: '12/26',
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: 'Credit Card',
-      brand: 'Mastercard',
-      last4: '8888',
-      expiry: '08/25',
-      isDefault: false,
-    },
-    {
-      id: 3,
-      type: 'Digital Wallet',
-      brand: 'PayPal',
-      email: 'john.doe@email.com',
-      isDefault: false,
-    },
-  ])
+  useFocusEffect(
+    useCallback(() => {
+      const fetchPaymentMethods = async () => {
+        try {
+          const methods = await apiCall('/api/payments/methods');
+          if (methods) {
+            setPaymentMethods(methods);
+          }
+        } catch (error) {
+          console.error('Failed to fetch payment methods:', error);
+        }
+      };
+
+      fetchPaymentMethods();
+    }, [])
+  );
 
   const getCardIcon = (brand: string) => {
     switch (brand) {
-      case 'Visa': return '💳'
-      case 'Mastercard': return '💳'
-      case 'PayPal': return '💰'
-      default: return '💳'
+      case 'Visa': return '💳';
+      case 'Mastercard': return '💳';
+      case 'PayPal': return '💰';
+      default: return '💳';
     }
-  }
+  };
 
-  const handleEditPayment = (id: number) => {
-    Alert.alert('Edit Payment', `Edit payment method ${id}`)
-  }
+  const handleEditPayment = (method: any) => {
+    router.push({
+      pathname: '/account/edit-payment-method',
+      params: { paymentMethod: JSON.stringify(method) },
+    });
+  };
 
-  const handleDeletePayment = (id: number) => {
-    Alert.alert('Delete Payment Method', `Delete payment method ${id}?`, [
+  const handleSetDefaultPaymentMethod = async (methodId: string) => {
+    try {
+      const updatedMethods = paymentMethods.map(method => ({
+        ...method,
+        isDefault: method._id === methodId,
+      }));
+
+      const result = await apiCall('/api/payments/methods', {
+        method: 'PUT',
+        body: JSON.stringify({ paymentMethods: updatedMethods }),
+      });
+
+      if (result) {
+        setPaymentMethods(updatedMethods);
+      } else {
+        throw new Error('Failed to set default payment method.');
+      }
+    } catch (error) {
+      console.error('Set default payment method error:', error);
+    }
+  };
+
+  const handleDeletePayment = (methodId: string) => {
+    Alert.alert('Delete Payment Method', 'Are you sure you want to delete this payment method?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive' },
-    ])
-  }
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const result = await apiCall(`/api/payments/methods/${methodId}`, {
+              method: 'DELETE',
+            });
+
+            if (result) {
+              setPaymentMethods(prev => prev.filter(method => method._id !== methodId));
+            } else {
+              throw new Error('Failed to delete payment method.');
+            }
+          } catch (error) {
+            console.error('Delete payment method error:', error);
+          }
+        },
+      },
+    ]);
+  };
 
   const handleAddPayment = () => {
-    Alert.alert('Add Payment Method', 'Add new payment method functionality')
-  }
+    router.push('/account/add-payment-method');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
+
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Payment Methods</Text>
@@ -79,61 +117,62 @@ export default function PaymentScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {paymentMethods.map((method) => (
-          <View key={method.id} style={styles.paymentCard}>
-            <View style={styles.paymentHeader}>
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentIcon}>{getCardIcon(method.brand)}</Text>
-                <View style={styles.paymentDetails}>
-                  <Text style={styles.paymentBrand}>{method.brand}</Text>
-                  <Text style={styles.paymentType}>{method.type}</Text>
+        {paymentMethods.map(method => (
+          <SwipeableRow key={method._id} onDelete={() => handleDeletePayment(method._id)}>
+            <View style={styles.paymentCard}>
+              <View style={styles.paymentHeader}>
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paymentIcon}>{getCardIcon(method.brand)}</Text>
+                  <View style={styles.paymentDetails}>
+                    <Text style={styles.paymentBrand}>{method.brand}</Text>
+                    <Text style={styles.paymentType}>{method.type}</Text>
+                  </View>
                 </View>
+                {method.isDefault && (
+                  <View style={styles.defaultBadge}>
+                    <Text style={styles.defaultText}>Default</Text>
+                  </View>
+                )}
               </View>
-              
-              {method.isDefault && (
-                <View style={styles.defaultBadge}>
-                  <Text style={styles.defaultText}>Default</Text>
+              {method.last4 ? (
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardNumber}>•••• •••• •••• {method.last4}</Text>
+                  {method.expiry && <Text style={styles.cardExpiry}>Expires {method.expiry}</Text>}
                 </View>
+              ) : (
+                <Text style={styles.paymentEmail}>{method.email}</Text>
               )}
-            </View>
-            
-            {method.last4 ? (
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardNumber}>•••• •••• •••• {method.last4}</Text>
-                <Text style={styles.cardExpiry}>Expires {method.expiry}</Text>
+              <View style={styles.paymentActions}>
+                {!method.isDefault && (
+                  <Pressable
+                    onPress={() => handleSetDefaultPaymentMethod(method._id)}
+                    style={styles.actionButton}
+                  >
+                    <Text style={styles.actionText}>Set as Default</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() => handleEditPayment(method)}
+                  style={styles.actionButton}
+                >
+                  <Text style={styles.actionText}>Edit</Text>
+                </Pressable>
               </View>
-            ) : (
-              <Text style={styles.paymentEmail}>{method.email}</Text>
-            )}
-            
-            <View style={styles.paymentActions}>
-              <Pressable 
-                onPress={() => handleEditPayment(method.id)}
-                style={styles.actionButton}
-              >
-                <Text style={styles.actionText}>Edit</Text>
-              </Pressable>
-              <Pressable 
-                onPress={() => handleDeletePayment(method.id)}
-                style={[styles.actionButton, styles.deleteButton]}
-              >
-                <Text style={[styles.actionText, styles.deleteText]}>Remove</Text>
-              </Pressable>
             </View>
-          </View>
+          </SwipeableRow>
         ))}
-        
+
         <View style={styles.securityInfo}>
           <Text style={styles.securityTitle}>🔒 Security</Text>
           <Text style={styles.securityText}>
             Your payment information is encrypted and secure. We never store your full card details.
           </Text>
         </View>
-        
+
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -288,4 +327,4 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 100,
   },
-})
+});

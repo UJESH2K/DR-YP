@@ -11,10 +11,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { useAuthStore } from '../src/state/auth';
+import { useCustomRouter } from '../src/hooks/useCustomRouter';
 
 export default function LoginScreen() {
+  const router = useCustomRouter();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -153,14 +154,15 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 8,
+    fontFamily: 'Zaloga',
   },
   subtitle: {
     fontSize: 16,
     color: '#666666',
     textAlign: 'center',
+    fontFamily: 'JosefinSans_400Regular',
   },
   form: {
     // flex: 1,
@@ -174,6 +176,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#ffffff',
     marginBottom: 16,
+    fontFamily: 'JosefinSans_400Regular',
   },
   primaryButton: {
     backgroundColor: '#FF6B6B',
@@ -185,7 +188,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   footer: {
     paddingBottom: 40,
@@ -197,7 +200,7 @@ const styles = StyleSheet.create({
   toggleButtonText: {
     color: '#FF6B6B',
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'JosefinSans_500Medium',
   },
   skipButton: {
     alignItems: 'center',
@@ -207,13 +210,14 @@ const styles = StyleSheet.create({
   skipButtonText: {
     color: '#666666',
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'JosefinSans_500Medium',
   },
   terms: {
     fontSize: 12,
     color: '#999999',
     textAlign: 'center',
     lineHeight: 18,
+    fontFamily: 'JosefinSans_400Regular',
   },
 
 });

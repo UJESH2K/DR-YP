@@ -70,19 +70,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     marginBottom: 4,
+    fontFamily: 'Zaloga',
   },
   cardTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 8,
+    fontFamily: 'Zaloga',
   },
   cardPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
     color: '#1a1a1a',
     marginTop: 4,
     marginBottom: 8,
+    fontFamily: 'Zaloga',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -95,11 +96,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0e0e0',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   tagText: {
     fontSize: 10,
     color: '#333',
+    fontFamily: 'Zaloga',
   },
   overlay: {
     position: 'absolute',

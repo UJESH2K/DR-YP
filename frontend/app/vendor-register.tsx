@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { useAuthStore } from '../src/state/auth';
 import { apiCall } from '../src/lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCustomRouter } from '../src/hooks/useCustomRouter';
 
 export default function VendorRegisterScreen() {
+  const router = useCustomRouter();
   const { user, token, ...authActions } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 

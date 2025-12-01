@@ -32,7 +32,6 @@ export default function ProfileScreen() {
   };
 
   const menuItems = [
-    { id: 'orders', title: 'My Orders', icon: <MaterialIcons name="local-shipping" size={22} color="#000" />, onPress: () => router.push('/account/orders') },
     { id: 'addresses', title: 'Addresses', icon: <Ionicons name="location-outline" size={22} color="#000" />, onPress: () => router.push('/account/addresses') },
     { id: 'payment', title: 'Payment Methods', icon: <Ionicons name="card-outline" size={22} color="#000" />, onPress: () => router.push('/account/payment') },
     { id: 'settings', title: 'Settings', icon: <Feather name="settings" size={22} color="#000" />, onPress: () => router.push('/account/settings') },
@@ -57,15 +56,6 @@ export default function ProfileScreen() {
           {guestId && <Text style={styles.profileEmail}>ID: {guestId}</Text>}
         </View>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.menuSection}>
-            <Pressable style={styles.menuItem} onPress={() => router.push('/account/orders')}>
-              <View style={styles.menuItemLeft}>
-                <Text style={styles.menuItemIcon}><MaterialIcons name="local-shipping" size={22} color="#000" /></Text>
-                <Text style={styles.menuItemTitle}>My Orders</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-          </View>
           <View style={styles.guestCtaSection}>
             <Text style={styles.guestCtaText}>Want to save your preferences and orders?</Text>
             <Pressable style={styles.signInButton} onPress={() => router.push('/login')}>
@@ -84,9 +74,6 @@ export default function ProfileScreen() {
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Account</Text>
-        <Pressable onPress={() => router.push('/cart')}>
-          <Text style={{ fontSize: 31, color: '#000' }}>🛒</Text>
-        </Pressable>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -132,16 +119,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 10,
+    paddingVertical: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eaeaea',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
     color: '#000',
+    fontFamily: 'Zaloga',
   },
   content: {
     flex: 1,
@@ -164,18 +150,18 @@ const styles = StyleSheet.create({
   },
   profileAvatarText: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontFamily: 'Zaloga',
   },
   profileName: {
     fontSize: 22,
-    fontWeight: '700',
     color: '#000000',
     marginBottom: 4,
+    fontFamily: 'Zaloga',
   },
   profileEmail: {
     fontSize: 16,
     color: '#666666',
-    fontWeight: '400',
+    fontFamily: 'Zaloga',
   },
   menuSection: {
     paddingHorizontal: 20,
@@ -198,8 +184,8 @@ const styles = StyleSheet.create({
   },
   menuItemTitle: {
     fontSize: 16,
-    fontWeight: '500',
     color: '#000000',
+    fontFamily: 'Zaloga',
   },
   menuItemArrow: {
     fontSize: 20,
@@ -219,7 +205,7 @@ const styles = StyleSheet.create({
   signOutText: {
     color: '#ff4444',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Zaloga',
   },
   bottomSpacing: {
     height: 40,
@@ -236,8 +222,8 @@ const styles = StyleSheet.create({
   },
   guestHeaderText: {
     fontSize: 18,
-    fontWeight: '600',
     color: '#000',
+    fontFamily: 'Zaloga',
   },
   guestView: { // This style is no longer used directly for the main layout, replaced by profileSection and guestCtaSection
     flex: 1,
@@ -277,7 +263,7 @@ const styles = StyleSheet.create({
   signInButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Zaloga',
   },
   guestCtaSection: {
     paddingHorizontal: 20,
@@ -292,5 +278,6 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     marginBottom: 15,
+    fontFamily: 'Zaloga',
   },
 });

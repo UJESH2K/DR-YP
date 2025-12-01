@@ -96,13 +96,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#000',
-    borderRadius: 20, // Sleekness
+    borderRadius: 12, // Sleekness
     padding: 5,
     backgroundColor: '#000',
   },
   dropdownText: {
     color: '#fff',
     marginRight: 5,
+    fontFamily: 'Zaloga',
   },
   modalContainer: {
     flex: 1,
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 20,
     width: '80%',
     maxHeight: '80%',
@@ -122,10 +123,11 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 16,
+    fontFamily: 'Zaloga',
   },
   selectedOptionText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Zaloga',
   },
   buttonsContainer: {
     flexDirection: 'row',
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
   applyButton: {
     padding: 10,
     backgroundColor: '#000', // Changed to black
-    borderRadius: 5,
+    borderRadius: 12,
     alignItems: 'center',
     flex: 1,
     marginLeft: 5,
@@ -143,11 +145,12 @@ const styles = StyleSheet.create({
   applyButtonText: {
     color: 'white',
     fontSize: 16,
+    fontFamily: 'Zaloga',
   },
   cancelButton: {
     padding: 10,
     backgroundColor: '#ccc',
-    borderRadius: 5,
+    borderRadius: 12,
     alignItems: 'center',
     flex: 1,
     marginRight: 5,
@@ -155,5 +158,6 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: 'white',
     fontSize: 16,
+    fontFamily: 'Zaloga',
   },
 });

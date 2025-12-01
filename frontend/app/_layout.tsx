@@ -4,6 +4,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  JosefinSans_400Regular,
+  JosefinSans_500Medium,
+  JosefinSans_600SemiBold,
+} from '@expo-google-fonts/josefin-sans';
+import { CormorantGaramond_700Bold } from '@expo-google-fonts/cormorant-garamond';
 import { useAuthStore } from '../src/state/auth';
 import Toast from '../src/components/Toast';
 import { useCustomRouter } from '../src/hooks/useCustomRouter';
@@ -12,7 +19,14 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const { isAuthenticated, isGuest, user, loadUser } = useAuthStore();
-  const [appIsReady, setAppIsReady] = React.useState(false);
+  const [fontsLoaded] = useFonts({
+    JosefinSans_400Regular,
+    JosefinSans_500Medium,
+    JosefinSans_600SemiBold,
+    CormorantGaramond_700Bold,
+    Zaloga: require('../assets/fonts/Zaloga.ttf'),
+  });
+  const [authIsReady, setAuthIsReady] = React.useState(false);
   const router = useCustomRouter();
 
   useEffect(() => {
@@ -22,13 +36,20 @@ export default function RootLayout() {
       } catch (e) {
         console.warn(e);
       } finally {
-        setAppIsReady(true);
-        SplashScreen.hideAsync();
+        setAuthIsReady(true);
       }
     }
 
     prepare();
   }, []);
+
+  const appIsReady = fontsLoaded && authIsReady;
+
+  useEffect(() => {
+    if (appIsReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [appIsReady]);
 
   useEffect(() => {
     if (appIsReady) {
@@ -54,7 +75,6 @@ export default function RootLayout() {
     }
   }, [isAuthenticated, isGuest, user, appIsReady]);
 
-
   if (!appIsReady) {
     return null; // Or a loading indicator
   }
@@ -69,3 +89,4 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+

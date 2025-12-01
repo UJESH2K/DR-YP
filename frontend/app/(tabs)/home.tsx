@@ -11,8 +11,10 @@ import { EmptyState } from '../../src/components/home/EmptyState';
 import { Card } from '../../src/components/home/Card';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
 import { Item } from '../../src/types';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 
 export default function HomeScreen() {
+  const router = useCustomRouter();
   const {
     items,
     loading,

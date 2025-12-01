@@ -20,13 +20,14 @@ const styles = StyleSheet.create({
   },
   logo: {
     fontSize: 48,
-    fontWeight: 'bold',
     color: '#000',
     marginBottom: 20,
+    fontFamily: 'Zaloga',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
     color: '#666',
+    fontFamily: 'Zaloga',
   },
 });

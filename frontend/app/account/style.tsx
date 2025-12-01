@@ -214,8 +214,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
     color: '#000000',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   placeholder: {
     width: 34,
@@ -230,15 +230,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 20,
     marginBottom: 30,
+    fontFamily: 'JosefinSans_400Regular',
   },
   section: {
     marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
     color: '#000000',
     marginBottom: 16,
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   optionsGrid: {
     flexDirection: 'row',
@@ -264,8 +265,8 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#000000',
+    fontFamily: 'JosefinSans_500Medium',
   },
   selectedText: {
     color: '#ffffff',
@@ -311,8 +312,8 @@ const styles = StyleSheet.create({
   },
   brandText: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#000000',
+    fontFamily: 'JosefinSans_500Medium',
   },
   selectedBrandText: {
     color: '#ffffff',
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   disabledButton: {
     backgroundColor: '#cccccc',

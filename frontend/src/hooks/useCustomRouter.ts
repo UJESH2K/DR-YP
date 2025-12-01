@@ -5,20 +5,30 @@ export function useCustomRouter() {
   const router = useRouter();
   const { push: pushToHistory, goBack: goBackFromHistory } = useNavigationStore();
 
-  const push = (path: string) => {
-    pushToHistory(path);
-    router.push(path);
+  const push = (path: string | { pathname: string, params: any }, params?: any) => {
+    if (typeof path === 'string') {
+      pushToHistory(path);
+      router.push(path);
+    } else {
+      pushToHistory(path.pathname);
+      router.push(path);
+    }
   };
 
-  const replace = (path: string) => {
-    pushToHistory(path); // Even with replace, we add to history for back button logic
-    router.replace(path);
+  const replace = (path: string | { pathname: string, params: any }, params?: any) => {
+    if (typeof path === 'string') {
+      pushToHistory(path);
+      router.replace(path);
+    } else {
+      pushToHistory(path.pathname);
+      router.replace(path);
+    }
   };
 
-  const goBack = () => {
+  const goBack = (params?: any) => {
     const backPath = goBackFromHistory();
     if (backPath) {
-      router.replace(backPath);
+      router.replace({ pathname: backPath, params });
     } else {
       router.back();
     }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,56 +7,86 @@ import {
   Pressable,
   StatusBar,
   Alert,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useCustomRouter } from '../../src/hooks/useCustomRouter'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
+import { apiCall } from '../../src/lib/api';
+import { useFocusEffect } from 'expo-router';
 
 export default function AddressesScreen() {
-  const router = useCustomRouter()
+  const router = useCustomRouter();
+  const [addresses, setAddresses] = useState([]);
 
-  const [addresses] = useState([
-    {
-      id: 1,
-      type: 'Home',
-      name: 'John Doe',
-      address: '123 Main Street, Apt 4B',
-      city: 'New York, NY 10001',
-      phone: '+1 (555) 123-4567',
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: 'Work',
-      name: 'John Doe',
-      address: '456 Business Ave, Suite 200',
-      city: 'New York, NY 10002',
-      phone: '+1 (555) 987-6543',
-      isDefault: false,
-    },
-    {
-      id: 3,
-      type: 'Other',
-      name: 'Jane Smith',
-      address: '789 Friend Street',
-      city: 'Brooklyn, NY 11201',
-      phone: '+1 (555) 456-7890',
-      isDefault: false,
-    },
-  ])
+  useFocusEffect(
+    useCallback(() => {
+      const fetchAddresses = async () => {
+        try {
+          const profile = await apiCall('/api/users/profile');
+          if (profile && profile.addresses) {
+            setAddresses(profile.addresses);
+          }
+        } catch (error) {
+          console.error('Failed to fetch addresses:', error);
+        }
+      };
 
-  const handleEditAddress = (id: number) => {
-    Alert.alert('Edit Address', `Edit address ${id}`)
+      fetchAddresses();
+    }, [])
+  );
+
+
+
+  const handleSetDefaultAddress = async (addressId: string) => {
+    try {
+      const updatedAddresses = addresses.map(a => ({
+        ...a,
+        isDefault: a._id === addressId,
+      }));
+
+      const result = await apiCall('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ addresses: updatedAddresses }),
+      });
+
+      if (result) {
+        setAddresses(updatedAddresses);
+      } else {
+        throw new Error('Failed to set default address.');
+      }
+    } catch (error) {
+      console.error('Set default address error:', error);
+    }
+  };
+
+  const handleEditAddress = (address) => {
+    router.push({ pathname: '/account/edit-address', params: { address: JSON.stringify(address) } });
   }
 
-  const handleDeleteAddress = (id: number) => {
-    Alert.alert('Delete Address', `Delete address ${id}?`, [
+  const handleDeleteAddress = (addressId: string) => {
+    Alert.alert('Delete Address', `Delete address ${addressId}?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          const updatedAddresses = addresses.filter(a => a._id !== addressId);
+          const result = await apiCall('/api/users/profile', {
+            method: 'PUT',
+            body: JSON.stringify({ addresses: updatedAddresses }),
+          });
+
+          if (result) {
+            setAddresses(updatedAddresses);
+          } else {
+            throw new Error('Failed to delete address.');
+          }
+        } catch (error) {
+          console.error('Delete address error:', error);
+        }
+      }},
     ])
   }
 
   const handleAddAddress = () => {
-    Alert.alert('Add Address', 'Add new address functionality')
+    router.push('/account/add-address');
   }
 
   return (
@@ -75,7 +105,7 @@ export default function AddressesScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {addresses.map((address) => (
-          <View key={address.id} style={styles.addressCard}>
+          <View key={address._id} style={styles.addressCard}>
             <View style={styles.addressHeader}>
               <View style={styles.addressTypeContainer}>
                 <Text style={styles.addressType}>{address.type}</Text>
@@ -87,14 +117,22 @@ export default function AddressesScreen() {
               </View>
               
               <View style={styles.addressActions}>
+                {!address.isDefault && (
+                  <Pressable
+                    onPress={() => handleSetDefaultAddress(address._id)}
+                    style={styles.actionButton}
+                  >
+                    <Text style={styles.actionText}>Set as Default</Text>
+                  </Pressable>
+                )}
                 <Pressable 
-                  onPress={() => handleEditAddress(address.id)}
+                  onPress={() => handleEditAddress(address)}
                   style={styles.actionButton}
                 >
                   <Text style={styles.actionText}>Edit</Text>
                 </Pressable>
                 <Pressable 
-                  onPress={() => handleDeleteAddress(address.id)}
+                  onPress={() => handleDeleteAddress(address._id)}
                   style={[styles.actionButton, styles.deleteButton]}
                 >
                   <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>

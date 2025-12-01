@@ -294,13 +294,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
     color: '#1a1a1a',
     marginBottom: 8,
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   subtitle: {
     fontSize: 16,
     color: '#666666',
+    fontFamily: 'JosefinSans_400Regular',
   },
   grid: {
     paddingHorizontal: 16,
@@ -327,9 +328,9 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#1a1a1a',
     textAlign: 'center',
+    fontFamily: 'JosefinSans_500Medium',
   },
   selectedText: {
     color: '#ffffff',
@@ -377,8 +378,8 @@ const styles = StyleSheet.create({
   },
   brandText: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#1a1a1a',
+    fontFamily: 'JosefinSans_500Medium',
   },
   selectedBrandText: {
     color: '#ffffff',
@@ -399,8 +400,8 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    fontWeight: '700',
     color: '#1a1a1a',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   nextButton: {
     flex: 2,
@@ -411,8 +412,8 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     fontSize: 16,
-    fontWeight: '700',
     color: '#ffffff',
+    fontFamily: 'JosefinSans_600SemiBold',
   },
   disabledButton: {
     backgroundColor: '#cccccc',

@@ -3,14 +3,17 @@ import { View, Text, StyleSheet, ScrollView, Image, Pressable, StatusBar } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiCall } from '../../src/lib/api';
 import { useCartStore, CartItem } from '../../src/state/cart';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useToastStore } from '../../src/state/toast';
+import { useAuthStore } from '../../src/state/auth';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 export default function CartScreen() {
+  const router = useCustomRouter();
   const { items, removeFromCart, updateQuantity, updateCartItem } = useCartStore();
+  const { user } = useAuthStore();
   const [productDetails, setProductDetails] = React.useState<any>({});
   const showToast = useToastStore((state) => state.showToast);
 
@@ -75,8 +78,18 @@ export default function CartScreen() {
   }, [items, productDetails]);
   
   const handleCheckout = () => {
+    if (!user) {
+      showToast('Please login to proceed to checkout.', 'info', {
+        duration: 5000,
+        button: {
+          text: 'Login',
+          onPress: () => router.push('/login'),
+        },
+      });
+      return;
+    }
     if (isEveryVariantSelected) {
-      router.push('/checkout');
+      router.push('/(checkout)/checkout');
     } else {
       showToast('Please select variants for all items.', 'error');
     }
@@ -177,19 +190,20 @@ export default function CartScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   header: {
-    padding: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  headerTitle: { fontSize: 28, fontWeight: 'bold' },
+  headerTitle: { fontSize: 28, fontFamily: 'Zaloga' },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
-  emptySubtitle: { fontSize: 16, color: '#666' },
+  emptyTitle: { fontSize: 22, marginBottom: 8, fontFamily: 'Zaloga' },
+  emptySubtitle: { fontSize: 16, color: '#666', fontFamily: 'Zaloga' },
   itemList: { flex: 1 },
   itemCard: {
     backgroundColor: '#ffffff',
@@ -210,15 +224,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   itemInfo: { flex: 1 },
-  itemBrand: { fontSize: 12, color: '#888', textTransform: 'uppercase', marginBottom: 2 },
-  itemTitle: { fontSize: 16, fontWeight: '600' },
+  itemBrand: { fontSize: 12, color: '#888', textTransform: 'uppercase', marginBottom: 2, fontFamily: 'Zaloga' },
+  itemTitle: { fontSize: 16, fontFamily: 'Zaloga' },
   itemFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
   },
-  itemPrice: { fontSize: 16, fontWeight: 'bold' },
+  itemPrice: { fontSize: 16, fontFamily: 'Zaloga' },
   optionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -226,9 +240,9 @@ const styles = StyleSheet.create({
   },
   optionTitle: {
     fontSize: 12,
-    fontWeight: '600',
     color: '#666',
     marginRight: 6,
+    fontFamily: 'Zaloga',
   },
   optionButton: {
     paddingHorizontal: 10,
@@ -246,6 +260,7 @@ const styles = StyleSheet.create({
   optionText: {
     color: '#000',
     fontSize: 12,
+    fontFamily: 'Zaloga',
   },
   optionTextSelected: {
     color: '#fff',
@@ -262,8 +277,8 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontSize: 16,
-    fontWeight: '600',
     marginHorizontal: 10,
+    fontFamily: 'Zaloga',
   },
   summaryContainer: {
     backgroundColor: '#ffffff',
@@ -277,8 +292,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  summaryLabel: { fontSize: 16, color: '#666' },
-  summaryValue: { fontSize: 18, fontWeight: 'bold' },
+  summaryLabel: { fontSize: 16, color: '#666', fontFamily: 'Zaloga' },
+  summaryValue: { fontSize: 16, fontFamily: 'Zaloga' },
   checkoutButton: {
     backgroundColor: '#1a1a1a',
     padding: 16,
@@ -288,6 +303,6 @@ const styles = StyleSheet.create({
   checkoutButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Zaloga',
   },
 });

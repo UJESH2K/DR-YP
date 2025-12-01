@@ -45,6 +45,9 @@ export default function TabLayout() {
           paddingBottom: 10,
           paddingTop: 10,
         },
+        tabBarLabelStyle: {
+          fontFamily: 'Zaloga',
+        },
       }}
     >
       <Tabs.Screen
