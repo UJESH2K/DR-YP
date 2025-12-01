@@ -70,61 +70,63 @@ export default function HomeScreen() {
   const nextItem = items[(swipeAnimations.currentIndex + 1) % items.length];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <Header />
-      <Filters 
-        filters={filters}
-        selectedFilters={selectedFilters}
-        onSelectionChange={setSelectedFilters}
-      />
-      <View style={styles.cardStack}>
-        {nextItem && (
-          <Card 
-            item={nextItem}
-            style={{
-              opacity: 0.8,
-              transform: [
-                { scale: swipeAnimations.nextCardAnimation },
-                {
-                  translateY: swipeAnimations.nextCardAnimation.interpolate({
-                    inputRange: [0.9, 1],
-                    outputRange: [40, 0],
-                  }),
-                },
-              ],
-            }}
-            isNext
-          />
-        )}
-        {currentItem && (
-          <Card 
-            item={currentItem}
-            style={swipeAnimations.animatedCardStyles}
-            likeOpacity={swipeAnimations.likeOpacity}
-            nopeOpacity={swipeAnimations.nopeOpacity}
-            panHandlers={swipeAnimations.panResponder.panHandlers}
-          />
-        )}
-      </View>
+    <>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <Header />
+        <Filters 
+          filters={filters}
+          selectedFilters={selectedFilters}
+          onSelectionChange={setSelectedFilters}
+        />
+        <View style={styles.cardStack}>
+          {nextItem && (
+            <Card 
+              item={nextItem}
+              style={{
+                opacity: 0.8,
+                transform: [
+                  { scale: swipeAnimations.nextCardAnimation },
+                  {
+                    translateY: swipeAnimations.nextCardAnimation.interpolate({
+                      inputRange: [0.9, 1],
+                      outputRange: [40, 0],
+                    }),
+                  },
+                ],
+              }}
+              isNext
+            />
+          )}
+          {currentItem && (
+            <Card 
+              item={currentItem}
+              style={swipeAnimations.animatedCardStyles}
+              likeOpacity={swipeAnimations.likeOpacity}
+              nopeOpacity={swipeAnimations.nopeOpacity}
+              panHandlers={swipeAnimations.panResponder.panHandlers}
+            />
+          )}
+        </View>
+        
+        <Animated.View style={{ opacity: undoOpacity }}>
+          <Pressable 
+            style={[
+              styles.undoButton, 
+              swipeAnimations.lastSwipeDirection === 'left' ? { left: 30 } : { right: 30 }
+            ]} 
+            onPress={swipeAnimations.undoSwipe}
+            disabled={!swipeAnimations.canUndo}
+          >
+            <Ionicons 
+              name={swipeAnimations.lastSwipeDirection === 'left' ? "arrow-redo" : "arrow-undo"} 
+              size={40} 
+              color="black" 
+            />
+          </Pressable>
+        </Animated.View>
+      </SafeAreaView>
       
-      <Animated.View style={{ opacity: undoOpacity }}>
-        <Pressable 
-          style={[
-            styles.undoButton, 
-            swipeAnimations.lastSwipeDirection === 'left' ? { left: 30 } : { right: 30 }
-          ]} 
-          onPress={swipeAnimations.undoSwipe}
-          disabled={!swipeAnimations.canUndo}
-        >
-          <Ionicons 
-            name={swipeAnimations.lastSwipeDirection === 'left' ? "arrow-redo" : "arrow-undo"} 
-            size={40} 
-            color="black" 
-          />
-        </Pressable>
-      </Animated.View>
-
       {selectedProductId && (
         <ProductDetailModal
           productId={selectedProductId}
@@ -132,15 +134,7 @@ export default function HomeScreen() {
           onClose={hideDetailsWithAnimation}
         />
       )}
-
-      {selectedProductId && (
-        <ProductDetailModal
-          productId={selectedProductId}
-          isVisible={isModalVisible}
-          onClose={hideDetailsWithAnimation}
-        />
-      )}
-    </SafeAreaView>
+    </>
   );
 }
 

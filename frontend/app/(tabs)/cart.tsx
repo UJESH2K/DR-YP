@@ -6,6 +6,7 @@ import { useCartStore, CartItem } from '../../src/state/cart';
 import { Ionicons } from '@expo/vector-icons';
 import { useToastStore } from '../../src/state/toast';
 import { useAuthStore } from '../../src/state/auth';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
@@ -16,6 +17,8 @@ export default function CartScreen() {
   const { user } = useAuthStore();
   const [productDetails, setProductDetails] = React.useState<any>({});
   const showToast = useToastStore((state) => state.showToast);
+  const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
 
   const handleVariantChange = React.useCallback((cartItem: CartItem, newOptions: { [key: string]: string }) => {
     const product = productDetails[cartItem.productId];
@@ -96,77 +99,83 @@ export default function CartScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Cart</Text>
-      </View>
-
-      {items.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
-          <Text style={styles.emptySubtitle}>Items you add to your cart will appear here.</Text>
+    <>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Cart</Text>
         </View>
-      ) : (
-        <>
-          <ScrollView style={styles.itemList}>
-            {items.map((item) => (
-              <View key={item.id} style={styles.itemCard}>
-                <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.itemImage} />
-                <View style={styles.itemContent}>
-                  <View style={styles.itemHeader}>
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemBrand}>{item.brand}</Text>
-                      <Text style={styles.itemTitle}>{item.title}</Text>
-                    </View>
-                    <Pressable onPress={() => removeFromCart(item.id)} style={styles.removeButton}>
-                      <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
-                    </Pressable>
-                  </View>
-                  
-                  {productDetails[item.productId] && productDetails[item.productId].variants?.length > 0 && (
-                    <View style={styles.variantSelector}>
-                      {productDetails[item.productId].options.map((option: any) => (
-                        <View key={option.name} style={styles.optionContainer}>
-                          <Text style={styles.optionTitle}>{option.name}:</Text>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            {option.values.map((value: string) => (
-                              <Pressable
-                                key={value}
-                                style={[
-                                  styles.optionButton,
-                                  item.options && item.options[option.name] === value && styles.optionButtonSelected,
-                                ]}
-                                onPress={() => handleVariantChange(item, { ...item.options, [option.name]: value })}
-                              >
-                                <Text style={[
-                                  styles.optionText,
-                                  item.options && item.options[option.name] === value && styles.optionTextSelected,
-                                ]}>
-                                  {value}
-                                </Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      ))}
-                    </View>
-                  )}
 
-                  <View style={styles.itemFooter}>
-                    <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
-                    <View style={styles.quantityControls}>
-                      <Pressable onPress={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}>
-                        <Ionicons name="remove-circle-outline" size={28} color="#666" />
+        {items.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>Your cart is empty</Text>
+            <Text style={styles.emptySubtitle}>Items you add to your cart will appear here.</Text>
+          </View>
+        ) : (
+          <>
+            <ScrollView style={styles.itemList}>
+              {items.map((item) => (
+                              <Pressable key={item.id} onPress={() => {
+                                setSelectedProductId(item.productId);
+                                setIsModalVisible(true);
+                              }}>
+                                <View style={styles.itemCard}>
+                                  <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.itemImage} />
+                                  <View style={styles.itemContent}>
+                                    <View style={styles.itemHeader}>
+                      <View style={styles.itemInfo}>
+                        <Text style={styles.itemBrand}>{item.brand}</Text>
+                        <Text style={styles.itemTitle}>{item.title}</Text>
+                      </View>
+                      <Pressable onPress={() => removeFromCart(item.id)} style={styles.removeButton}>
+                        <Ionicons name="close-outline" size={20} color="#fff" />
                       </Pressable>
-                      <Text style={styles.quantityText}>{item.quantity}</Text>
-                      <Pressable onPress={() => updateQuantity(item.id, item.quantity + 1)}>
-                        <Ionicons name="add-circle-outline" size={28} color="#666" />
-                      </Pressable>
+                    </View>
+                    
+                    {productDetails[item.productId] && productDetails[item.productId].variants?.length > 0 && (
+                      <View style={styles.variantSelector}>
+                        {productDetails[item.productId].options.map((option: any) => (
+                          <View key={option.name} style={styles.optionContainer}>
+                            <Text style={styles.optionTitle}>{option.name}:</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                              {option.values.map((value: string) => (
+                                <Pressable
+                                  key={value}
+                                  style={[
+                                    styles.optionButton,
+                                    item.options && item.options[option.name] === value && styles.optionButtonSelected,
+                                  ]}
+                                  onPress={() => handleVariantChange(item, { ...item.options, [option.name]: value })}
+                                >
+                                  <Text style={[
+                                    styles.optionText,
+                                    item.options && item.options[option.name] === value && styles.optionTextSelected,
+                                  ]}>
+                                    {value}
+                                  </Text>
+                                </Pressable>
+                              ))}
+                            </ScrollView>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    <View style={styles.itemFooter}>
+                      <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+                      <View style={styles.quantityControls}>
+                        <Pressable onPress={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}>
+                          <Ionicons name="remove-circle-outline" size={28} color="#666" />
+                        </Pressable>
+                        <Text style={styles.quantityText}>{item.quantity}</Text>
+                        <Pressable onPress={() => updateQuantity(item.id, item.quantity + 1)}>
+                          <Ionicons name="add-circle-outline" size={28} color="#666" />
+                        </Pressable>
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
           <View style={styles.summaryContainer}>
@@ -182,8 +191,14 @@ export default function CartScreen() {
             </Pressable>
           </View>
         </>
-      )}
-    </SafeAreaView>
+        )}
+      </SafeAreaView>
+      <ProductDetailModal
+        productId={selectedProductId}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+      />
+    </>
   );
 }
 
@@ -204,53 +219,63 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 22, marginBottom: 8, fontFamily: 'Zaloga' },
   emptySubtitle: { fontSize: 16, color: '#666', fontFamily: 'Zaloga' },
-  itemList: { flex: 1 },
+  itemList: { flex: 1, paddingHorizontal: 16 },
   itemCard: {
     backgroundColor: '#ffffff',
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
     borderRadius: 12,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
     flexDirection: 'row',
   },
-  itemImage: { width: 80, height: 80, borderRadius: 8, marginRight: 12 },
+  itemImage: { 
+    width: 120, 
+    height: '100%', 
+    borderTopLeftRadius: 12, 
+    borderBottomLeftRadius: 12,
+    resizeMode: 'cover',
+  },
   itemContent: {
+    padding: 12,
     flex: 1,
-    justifyContent: 'space-between',
   },
   itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 8,
   },
   itemInfo: { flex: 1 },
-  itemBrand: { fontSize: 12, color: '#888', textTransform: 'uppercase', marginBottom: 2, fontFamily: 'Zaloga' },
-  itemTitle: { fontSize: 16, fontFamily: 'Zaloga' },
+  itemBrand: { fontSize: 14, color: '#888', textTransform: 'uppercase', marginBottom: 4, fontFamily: 'Zaloga' },
+  itemTitle: { fontSize: 18, fontFamily: 'Zaloga', flexShrink: 1 },
   itemFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
   },
-  itemPrice: { fontSize: 16, fontFamily: 'Zaloga' },
+  itemPrice: { fontSize: 18, fontFamily: 'Zaloga' },
   optionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 8,
   },
   optionTitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#666',
     marginRight: 6,
     fontFamily: 'Zaloga',
   },
   optionButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ccc',
-    marginRight: 6,
+    marginRight: 8,
     backgroundColor: '#f0f0f0',
   },
   optionButtonSelected: {
@@ -259,25 +284,29 @@ const styles = StyleSheet.create({
   },
   optionText: {
     color: '#000',
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Zaloga',
   },
   optionTextSelected: {
     color: '#fff',
   },
   variantSelector: {
-    marginTop: 8,
+    marginTop: 10,
   },
   removeButton: {
-    padding: 4,
+    padding: 8,
+    backgroundColor: '#ff4d4f',
+    borderRadius: 20
   },
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
   },
   quantityText: {
-    fontSize: 16,
-    marginHorizontal: 10,
+    fontSize: 18,
+    marginHorizontal: 16,
     fontFamily: 'Zaloga',
   },
   summaryContainer: {

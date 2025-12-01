@@ -235,108 +235,110 @@ export default function SearchScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      {renderFilterModal()}
-      <View style={styles.header}>
-        <View style={styles.searchBarContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search products..."
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            onSubmitEditing={fetchData} // Trigger search on keyboard submit
-          />
-          <Pressable onPress={fetchData} style={styles.searchIcon}>
-            <Ionicons name="search" size={24} color="#888" />
+    <>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        {renderFilterModal()}
+        <View style={styles.header}>
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search products..."
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              onSubmitEditing={fetchData} // Trigger search on keyboard submit
+            />
+            <Pressable onPress={fetchData} style={styles.searchIcon}>
+              <Ionicons name="search" size={24} color="#888" />
+            </Pressable>
+          </View>
+          <Pressable onPress={() => setFilterModalVisible(true)}>
+              <Ionicons name="filter-outline" size={28} color="#000" style={{marginLeft: 10}} />
+          </Pressable>
+          <Pressable onPress={() => router.push('/(tabs)/cart')}>
+            <Ionicons name="cart-outline" size={31} color="#000" />
           </Pressable>
         </View>
-        <Pressable onPress={() => setFilterModalVisible(true)}>
-            <Ionicons name="filter-outline" size={28} color="#000" style={{marginLeft: 10}} />
-        </Pressable>
-        <Pressable onPress={() => router.push('/(tabs)/cart')}>
-          <Ionicons name="cart-outline" size={31} color="#000" />
-        </Pressable>
-      </View>
-      <FlatList
-        data={[
-          { type: 'recent-searches', data: recentSearches, title: 'Recent Searches' },
-          { type: 'search-results', data: results, title: 'Search Results' },
-          { type: 'trending', data: trending, title: 'Trending Now' },
-          { type: 'recommendations', data: recommendations, title: 'You Might Also Like' },
-        ]}
-        keyExtractor={(item) => item.type}
-        renderItem={({ item }) => {
-          if (isSearching && (item.type === 'search-results')) {
-            return <ActivityIndicator size="large" style={{marginTop: 50}} />;
-          }
+        <FlatList
+          data={[
+            { type: 'recent-searches', data: recentSearches, title: 'Recent Searches' },
+            { type: 'search-results', data: results, title: 'Search Results' },
+            { type: 'trending', data: trending, title: 'Trending Now' },
+            { type: 'recommendations', data: recommendations, title: 'You Might Also Like' },
+          ]}
+          keyExtractor={(item) => item.type}
+          renderItem={({ item }) => {
+            if (isSearching && (item.type === 'search-results')) {
+              return <ActivityIndicator size="large" style={{marginTop: 50}} />;
+            }
 
-          if (item.type === 'recent-searches' && recentSearches.length > 0 && results.length === 0 && searchQuery.length < 3) {
-            return (
-              <View>
-                <Text style={styles.sectionTitle}>{item.title}</Text>
-                <FlatList
-                  horizontal
-                  data={item.data}
-                  renderItem={({ item: recentSearch }) => (
-                    <Pressable style={styles.recentSearchCard} onPress={() => {
-                      setSearchQuery(recentSearch.query);
-                      fetchData();
-                    }}>
-                      <Image source={{ uri: recentSearch.image }} style={styles.recentSearchImage} />
-                      <Text style={styles.recentSearchTitle}>{recentSearch.query}</Text>
-                    </Pressable>
-                  )}
-                  keyExtractor={(recentSearch) => recentSearch.query}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 20 }}
-                />
-              </View>
-            );
-          }
-
-          if (item.type === 'search-results' && (results.length > 0 || searchQuery.length > 2)) {
-            return (
-              <>
-                <Text style={styles.sectionTitle}>{item.title}</Text>
-                <FlatList
-                    data={results}
-                    renderItem={({item}) => renderProductCard({item, large: false})}
-                    keyExtractor={(item) => item.id.toString()}
-                    numColumns={2}
-                    columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 20 }}
-                    ListEmptyComponent={<Text style={styles.emptyText}>No products found for your search.</Text>}
-                />
-              </>
-            )
-          }
-
-          if ((item.type === 'trending' || item.type === 'recommendations') && (results.length === 0 && searchQuery.length < 3)) {
-             return (
-                <View style={item.type === 'recommendations' ? {marginTop: 20} : {}}>
-                    <Text style={styles.sectionTitle}>{item.title}</Text>
-                    <FlatList
-                        horizontal
-                        data={item.data as Item[]}
-                        renderItem={({item: product}) => renderProductCard({item: product, large: true})}
-                        keyExtractor={(product) => `${item.type}-${product.id}`}
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 20 }}
-                    />
+            if (item.type === 'recent-searches' && recentSearches.length > 0 && results.length === 0 && searchQuery.length < 3) {
+              return (
+                <View>
+                  <Text style={styles.sectionTitle}>{item.title}</Text>
+                  <FlatList
+                    horizontal
+                    data={item.data}
+                    renderItem={({ item: recentSearch }) => (
+                      <Pressable style={styles.recentSearchCard} onPress={() => {
+                        setSearchQuery(recentSearch.query);
+                        fetchData();
+                      }}>
+                        <Image source={{ uri: recentSearch.image }} style={styles.recentSearchImage} />
+                        <Text style={styles.recentSearchTitle}>{recentSearch.query}</Text>
+                      </Pressable>
+                    )}
+                    keyExtractor={(recentSearch) => recentSearch.query}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 20 }}
+                  />
                 </View>
-             )
-          }
-          
-          return null;
-        }}
-        ListFooterComponent={<View style={{height: 40}} />}
-      />
+              );
+            }
+
+            if (item.type === 'search-results' && (results.length > 0 || searchQuery.length > 2)) {
+              return (
+                <>
+                  <Text style={styles.sectionTitle}>{item.title}</Text>
+                  <FlatList
+                      data={results}
+                      renderItem={({item}) => renderProductCard({item, large: false})}
+                      keyExtractor={(item) => item.id.toString()}
+                      numColumns={2}
+                      columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 20 }}
+                      ListEmptyComponent={<Text style={styles.emptyText}>No products found for your search.</Text>}
+                  />
+                </>
+              )
+            }
+
+            if ((item.type === 'trending' || item.type === 'recommendations') && (results.length === 0 && searchQuery.length < 3)) {
+               return (
+                  <View style={item.type === 'recommendations' ? {marginTop: 20} : {}}>
+                      <Text style={styles.sectionTitle}>{item.title}</Text>
+                      <FlatList
+                          horizontal
+                          data={item.data as Item[]}
+                          renderItem={({item: product}) => renderProductCard({item: product, large: true})}
+                          keyExtractor={(product) => `${item.type}-${product.id}`}
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ paddingHorizontal: 20 }}
+                      />
+                  </View>
+               )
+            }
+            
+            return null;
+          }}
+          ListFooterComponent={<View style={{height: 40}} />}
+        />
+      </SafeAreaView>
       <ProductDetailModal
         productId={selectedProductIdForModal}
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
       />
-    </SafeAreaView>
+    </>
   );
 }
 

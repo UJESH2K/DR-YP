@@ -16,11 +16,14 @@ import { useCartStore } from '../../src/state/cart';
 import { apiCall } from '../../src/lib/api';
 import type { Item } from '../../src/types';
 import { mapProductsToItems } from '../../src/utils/productMapping';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
 
 export default function WishlistScreen() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCartStore();
+  const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
 
   const fetchWishlist = useCallback(async () => {
     setLoading(true);
@@ -99,22 +102,27 @@ export default function WishlistScreen() {
   };
 
   const renderWishlistItem = ({ item }: { item: Item }) => (
-    <View style={styles.itemContainer}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemBrand}>{item.brand}</Text>
-        <Text style={styles.itemTitle}>{item.title}</Text>
-        <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
-        <View style={styles.itemActions}>
-          <Pressable onPress={() => handleAddToCart(item)} style={styles.addToCartButton}>
-            <Text style={styles.addToCartText}>Add to Cart</Text>
-          </Pressable>
-          <Pressable onPress={() => handleRemoveFromWishlist(item.id, item.title)} style={styles.removeButton}>
-            <Text style={styles.removeText}>Remove</Text>
-          </Pressable>
+    <Pressable onPress={() => {
+      setSelectedProductId(item.id);
+      setIsModalVisible(true);
+    }}>
+      <View style={styles.itemContainer}>
+        <Image source={{ uri: item.image }} style={styles.itemImage} />
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemBrand}>{item.brand}</Text>
+          <Text style={styles.itemTitle}>{item.title}</Text>
+          <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+          <View style={styles.itemActions}>
+            <Pressable onPress={() => handleAddToCart(item)} style={styles.addToCartButton}>
+              <Text style={styles.addToCartText}>Add to Cart</Text>
+            </Pressable>
+            <Pressable onPress={() => handleRemoveFromWishlist(item.id, item.title)} style={styles.removeButton}>
+              <Text style={styles.removeText}>Remove</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 
   if (loading) {
@@ -143,19 +151,26 @@ export default function WishlistScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Wishlist</Text>
-      </View>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        renderItem={renderWishlistItem}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
+    <>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Wishlist</Text>
+        </View>
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={renderWishlistItem}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
+      <ProductDetailModal
+        productId={selectedProductId}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
       />
-    </SafeAreaView>
+    </>
   );
 }
 
