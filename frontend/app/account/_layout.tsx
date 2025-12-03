@@ -70,9 +70,39 @@ export default function AccountLayout() {
         }}
       />
       {/* Added missing screens to the layout */}
-      <Stack.Screen name="about" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="about" 
+        options={{ 
+          title: 'About Us',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#ffffff',
+          },
+          headerTintColor: '#1a1a1a',
+          headerTitleStyle: {
+            fontFamily: 'Zaloga',
+            fontSize: 28,
+          },
+          headerShadowVisible: false,
+        }} 
+      />
       <Stack.Screen name="change-password" options={{ headerShown: false }} />
-      <Stack.Screen name="help" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="help" 
+        options={{ 
+          title: 'Help & Support',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#ffffff',
+          },
+          headerTintColor: '#1a1a1a',
+          headerTitleStyle: {
+            fontFamily: 'Zaloga',
+            fontSize: 28,
+          },
+          headerShadowVisible: false,
+        }} 
+      />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen
         name="orders"
@@ -106,7 +136,22 @@ export default function AccountLayout() {
           headerShadowVisible: false,
         }}
       />
-      <Stack.Screen name="style" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="style" 
+        options={{ 
+          title: 'Style Preferences',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#ffffff',
+          },
+          headerTintColor: '#1a1a1a',
+          headerTitleStyle: {
+            fontFamily: 'Zaloga',
+            fontSize: 28,
+          },
+          headerShadowVisible: false,
+        }} 
+      />
     </Stack>
   );
 }

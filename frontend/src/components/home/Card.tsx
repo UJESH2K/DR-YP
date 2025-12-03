@@ -28,16 +28,18 @@ export function Card({ item, style, likeOpacity, nopeOpacity, isNext = false, pa
       <Image source={{ uri: item.image }} style={styles.cardImage} />
       
       <View style={styles.infoSection}>
-        <Text style={styles.cardBrand}>{item.brand}</Text>
-        <Text style={styles.cardTitle} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
-        <View style={styles.tagsContainer}>
-          {item.tags?.slice(0, 3).map((tag: string) => (
-            <View key={tag} style={[styles.tag, isNext && { opacity: 0.7 }]}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
+        <View>
+          <Text style={styles.cardBrand}>{item.brand}</Text>
+          <Text style={styles.cardTitle} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
+          <View style={styles.tagsContainer}>
+            {item.tags?.slice(0, 3).map((tag: string) => (
+              <View key={tag} style={[styles.tag, isNext && { opacity: 0.7 }]}>
+                <Text style={styles.tagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={[styles.cardPrice, isNext && { opacity: 0.7 }]}>{formatPrice(item.price)}</Text>
         </View>
-        <Text style={[styles.cardPrice, isNext && { opacity: 0.7 }]}>{formatPrice(item.price)}</Text>
       </View>
     </Animated.View>
   );
@@ -50,57 +52,61 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 5,
     position: 'absolute',
+    overflow: 'hidden', 
   },
   cardImage: {
     width: '100%',
-    height: '70%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    height: '75%', 
   },
   infoSection: {
-    padding: 15,
-    flexShrink: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    height: 150, // Fixed height
+  },
+  topInfo: {
+    // Removed flexShrink: 1
   },
   cardBrand: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#888',
-    marginBottom: 4,
     fontFamily: 'Zaloga',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 2, 
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 24,
     color: '#1a1a1a',
-    marginBottom: 8,
     fontFamily: 'Zaloga',
+    lineHeight: 30,
+    marginBottom: 4,
   },
   cardPrice: {
-    fontSize: 16,
+    fontSize: 22,
     color: '#1a1a1a',
-    marginTop: 4,
-    marginBottom: 8,
     fontFamily: 'Zaloga',
+    marginTop: 8, // Add space above the price
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
+    gap: 8,
     marginBottom: 4,
   },
   tag: {
-    backgroundColor: '#e0e0e0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   tagText: {
-    fontSize: 10,
-    color: '#333',
+    fontSize: 14,
+    color: '#555',
     fontFamily: 'Zaloga',
   },
   overlay: {

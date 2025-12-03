@@ -16,6 +16,7 @@ import { useCartStore } from '../../src/state/cart';
 import { apiCall } from '../../src/lib/api';
 import type { Item } from '../../src/types';
 import { mapProductsToItems } from '../../src/utils/productMapping';
+import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
 
 export default function WishlistScreen() {
@@ -126,12 +127,7 @@ export default function WishlistScreen() {
   );
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}><Text style={styles.headerTitle}>My Wishlist</Text></View>
-        <ActivityIndicator size="large" style={{ flex: 1 }} />
-      </SafeAreaView>
-    );
+    return <AnimatedLoadingScreen text="Loading your wishlist..." />;
   }
 
   if (items.length === 0) {

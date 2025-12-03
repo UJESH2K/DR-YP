@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useToastStore } from '../../src/state/toast';
 import { useAuthStore } from '../../src/state/auth';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
+import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
@@ -19,6 +20,7 @@ export default function CartScreen() {
   const showToast = useToastStore((state) => state.showToast);
   const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
 
   const handleVariantChange = React.useCallback((cartItem: CartItem, newOptions: { [key: string]: string }) => {
     const product = productDetails[cartItem.productId];
@@ -45,21 +47,30 @@ export default function CartScreen() {
   React.useEffect(() => {
     const fetchProductDetails = async () => {
       const missingDetails = items.filter(item => !productDetails[item.productId]);
-      if (missingDetails.length === 0) return;
+      if (missingDetails.length === 0) {
+        setLoading(false);
+        return;
+      }
       
       const details: any = {};
-      for (const item of missingDetails) {
-        try {
+      try {
+        for (const item of missingDetails) {
           const product = await apiCall(`/api/products/${item.productId}`);
           details[item.productId] = product;
-        } catch (error) {
-          console.error(`Failed to fetch product details for ${item.productId}:`, error);
         }
+        setProductDetails(prev => ({ ...prev, ...details }));
+      } catch (error) {
+        console.error(`Failed to fetch product details for some items:`, error);
+      } finally {
+        setLoading(false);
       }
-      setProductDetails(prev => ({ ...prev, ...details }));
     };
 
-    fetchProductDetails();
+    if (items.length > 0) {
+      fetchProductDetails();
+    } else {
+      setLoading(false);
+    }
   }, [items]);
   
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -97,6 +108,10 @@ export default function CartScreen() {
       showToast('Please select variants for all items.', 'error');
     }
   };
+
+  if (loading) {
+    return <AnimatedLoadingScreen text="Loading your cart..." />;
+  }
 
   return (
     <>

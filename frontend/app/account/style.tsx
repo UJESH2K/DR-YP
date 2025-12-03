@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { useAuthStore } from '../../src/state/auth';
 import { apiCall } from '../../src/lib/api';
+import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
+
+// Helper function to sort options, putting selected items first
+const sortWithOptions = (options: string[], selectedOptions: string[]) => {
+  if (!options) return [];
+  const selectedSet = new Set(selectedOptions);
+  return [...options].sort((a, b) => {
+    const aIsSelected = selectedSet.has(a);
+    const bIsSelected = selectedSet.has(b);
+    if (aIsSelected && !bIsSelected) return -1;
+    if (!aIsSelected && bIsSelected) return 1;
+    return a.localeCompare(b); // Alphabetical sort for the rest
+  });
+};
 
 export default function StyleScreen() {
   const router = useCustomRouter();
@@ -21,48 +35,45 @@ export default function StyleScreen() {
   const [selectedStyles, setSelectedStyles] = useState(user?.preferences?.categories || []);
   const [selectedColors, setSelectedColors] = useState(user?.preferences?.colors || []);
   const [selectedBrands, setSelectedBrands] = useState(user?.preferences?.brands || []);
-  const [isLoading, setIsLoading] = useState(false);
+  
+  const [styleOptions, setStyleOptions] = useState([]);
+  const [colorOptions, setColorOptions] = useState([]);
+  const [brandOptions, setBrandOptions] = useState([]);
 
-  const styleOptions = [
-    { id: 'casual', name: 'Casual', icon: '👕' },
-    { id: 'formal', name: 'Formal', icon: '👔' },
-    { id: 'streetwear', name: 'Streetwear', icon: '🧢' },
-    { id: 'vintage', name: 'Vintage', icon: '🕶️' },
-    { id: 'minimalist', name: 'Minimalist', icon: '⚪' },
-    { id: 'bohemian', name: 'Bohemian', icon: '🌸' },
-  ];
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true);
 
-  const colorOptions = [
-    { id: 'black', name: 'Black', color: '#000000' },
-    { id: 'white', name: 'White', color: '#FFFFFF' },
-    { id: 'blue', name: 'Blue', color: '#2196F3' },
-    { id: 'red', name: 'Red', color: '#F44336' },
-    { id: 'green', name: 'Green', color: '#4CAF50' },
-    { id: 'pink', name: 'Pink', color: '#E91E63' },
-    { id: 'gray', name: 'Gray', color: '#9E9E9E' },
-    { id: 'brown', name: 'Brown', color: '#795548' },
-  ];
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [tags, colors, brands] = await Promise.all([
+          apiCall('/api/products/tags'),
+          apiCall('/api/products/colors'),
+          apiCall('/api/products/brands'),
+        ]);
 
-  const brandOptions = [
-    { id: 'nike', name: 'Nike' },
-    { id: 'adidas', name: 'Adidas' },
-    { id: 'zara', name: 'Zara' },
-    { id: 'hm', name: 'H&M' },
-    { id: 'uniqlo', name: 'Uniqlo' },
-    { id: 'gucci', name: 'Gucci' },
-  ];
+        // Sort the fetched options based on current user preferences
+        if (Array.isArray(tags)) setStyleOptions(sortWithOptions(tags, user?.preferences?.categories || []));
+        if (Array.isArray(colors)) setColorOptions(sortWithOptions(colors, user?.preferences?.colors || []));
+        if (Array.isArray(brands)) setBrandOptions(sortWithOptions(brands, user?.preferences?.brands || []));
+
+      } catch (error) {
+        console.error("Failed to fetch style options:", error);
+        Alert.alert("Error", "Could not load style options. Please try again later.");
+      } finally {
+        setIsLoadingOptions(false);
+      }
+    };
+    fetchOptions();
+  }, []); // Fetch only on component mount
 
   const toggleSelection = (array: string[], setArray: (arr: string[]) => void, item: string) => {
-    if (array.includes(item)) {
-      setArray(array.filter(i => i !== item));
-    } else {
-      setArray([...array, item]);
-    }
+    setArray(array.includes(item) ? array.filter(i => i !== item) : [...array, item]);
   };
 
   const handleSave = async () => {
-    if (isLoading) return;
-    setIsLoading(true);
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const preferences = {
         categories: selectedStyles,
@@ -77,6 +88,12 @@ export default function StyleScreen() {
 
       if (updatedUser) {
         await updateUser(updatedUser);
+        
+        // Re-sort the lists to bring new selections to the front
+        setStyleOptions(sortWithOptions(styleOptions, selectedStyles));
+        setColorOptions(sortWithOptions(colorOptions, selectedColors));
+        setBrandOptions(sortWithOptions(brandOptions, selectedBrands));
+        
         Alert.alert('Success', 'Your preferences have been saved!');
       } else {
         throw new Error('Failed to save preferences');
@@ -85,255 +102,163 @@ export default function StyleScreen() {
       console.error('Error saving preferences:', error);
       Alert.alert('Error', 'Could not save your preferences. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
+
+  if (isLoadingOptions) {
+    return <AnimatedLoadingScreen text="Loading style options..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Style Preference</Text>
-        <View style={styles.placeholder} />
-      </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>
-          Help us personalize your shopping experience by selecting your style preferences.
+          Help us personalize your shopping experience.
         </Text>
 
-        {/* Style Categories */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Style Categories</Text>
-          <View style={styles.optionsGrid}>
+          <Text style={styles.sectionTitle}>My Styles</Text>
+          <View style={styles.brandGrid}>
             {styleOptions.map((style) => (
               <Pressable
-                key={style.id}
-                style={[
-                  styles.optionCard,
-                  selectedStyles.includes(style.id) && styles.selectedCard
-                ]}
-                onPress={() => toggleSelection(selectedStyles, setSelectedStyles, style.id)}
+                key={style}
+                style={[styles.brandOption, selectedStyles.includes(style) && styles.selectedBrand]}
+                onPress={() => toggleSelection(selectedStyles, setSelectedStyles, style)}
               >
-                <Text style={styles.optionIcon}>{style.icon}</Text>
-                <Text style={[
-                  styles.optionText,
-                  selectedStyles.includes(style.id) && styles.selectedText
-                ]}>
-                  {style.name}
+                <Text style={[styles.brandText, selectedStyles.includes(style) && styles.selectedBrandText]}>
+                  {style}
                 </Text>
               </Pressable>
             ))}
           </View>
         </View>
 
-        {/* Favorite Colors */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Favorite Colors</Text>
-          <View style={styles.colorGrid}>
+          <Text style={styles.sectionTitle}>My Colors</Text>
+          <View style={styles.brandGrid}>
             {colorOptions.map((color) => (
               <Pressable
-                key={color.id}
-                style={[
-                  styles.colorOption,
-                  { backgroundColor: color.color },
-                  selectedColors.includes(color.id) && styles.selectedColor
-                ]}
-                onPress={() => toggleSelection(selectedColors, setSelectedColors, color.id)}
+                key={color}
+                style={[styles.brandOption, selectedColors.includes(color) && styles.selectedBrand]}
+                onPress={() => toggleSelection(selectedColors, setSelectedColors, color)}
               >
-                {selectedColors.includes(color.id) && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
+                <Text style={[styles.brandText, selectedColors.includes(color) && styles.selectedBrandText]}>
+                  {color}
+                </Text>
               </Pressable>
             ))}
           </View>
         </View>
 
-        {/* Preferred Brands */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferred Brands</Text>
+          <Text style={styles.sectionTitle}>My Brands</Text>
           <View style={styles.brandGrid}>
             {brandOptions.map((brand) => (
               <Pressable
-                key={brand.id}
-                style={[
-                  styles.brandOption,
-                  selectedBrands.includes(brand.id) && styles.selectedBrand
-                ]}
-                onPress={() => toggleSelection(selectedBrands, setSelectedBrands, brand.id)}
+                key={brand}
+                style={[styles.brandOption, selectedBrands.includes(brand) && styles.selectedBrand]}
+                onPress={() => toggleSelection(selectedBrands, setSelectedBrands, brand)}
               >
-                <Text style={[
-                  styles.brandText,
-                  selectedBrands.includes(brand.id) && styles.selectedBrandText
-                ]}>
-                  {brand.name}
+                <Text style={[styles.brandText, selectedBrands.includes(brand) && styles.selectedBrandText]}>
+                  {brand}
                 </Text>
               </Pressable>
             ))}
           </View>
         </View>
+        
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
 
-        <Pressable style={[styles.saveButton, isLoading && styles.disabledButton]} onPress={handleSave} disabled={isLoading}>
-          {isLoading ? (
+      <View style={styles.footer}>
+        <Pressable style={[styles.saveButton, isSaving && styles.disabledButton]} onPress={handleSave} disabled={isSaving}>
+          {isSaving ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
             <Text style={styles.saveButtonText}>Save Preferences</Text>
           )}
         </Pressable>
-        
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  backButton: {
-    padding: 5,
-  },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
-  headerTitle: {
-    fontSize: 20,
-    color: '#000000',
-    fontFamily: 'JosefinSans_600SemiBold',
-  },
-  placeholder: {
-    width: 34,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  description: {
-    fontSize: 16,
-    color: '#666666',
-    lineHeight: 22,
-    marginTop: 20,
-    marginBottom: 30,
-    fontFamily: 'JosefinSans_400Regular',
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    color: '#000000',
-    marginBottom: 16,
-    fontFamily: 'JosefinSans_600SemiBold',
-  },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  optionCard: {
-    width: '48%',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedCard: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  optionIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#000000',
-    fontFamily: 'JosefinSans_500Medium',
-  },
-  selectedText: {
-    color: '#ffffff',
-  },
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  colorOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  selectedColor: {
-    borderColor: '#000000',
-  },
-  checkmark: {
-    fontSize: 20,
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  brandGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  brandOption: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedBrand: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  brandText: {
-    fontSize: 14,
-    color: '#000000',
-    fontFamily: 'JosefinSans_500Medium',
-  },
-  selectedBrandText: {
-    color: '#ffffff',
-  },
-  saveButton: {
-    backgroundColor: '#000000',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  saveButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontFamily: 'JosefinSans_600SemiBold',
-  },
-  disabledButton: {
-    backgroundColor: '#cccccc',
-  },
-  bottomSpacing: {
-    height: 100,
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#f8f9fa',
+    },
+    content: {
+        flex: 1,
+        paddingHorizontal: 20,
+    },
+    description: {
+        fontSize: 16,
+        color: '#6c757d',
+        textAlign: 'center',
+        lineHeight: 24,
+        marginTop: 16,
+        marginBottom: 24,
+        fontFamily: 'Zaloga',
+    },
+    section: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontFamily: 'Zaloga',
+        color: '#343a40',
+        marginBottom: 16,
+    },
+    brandGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    brandOption: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#dee2e6',
+    },
+    selectedBrand: {
+        backgroundColor: '#000',
+        borderColor: '#000',
+    },
+    brandText: {
+        fontSize: 16,
+        color: '#343a40',
+        fontFamily: 'Zaloga',
+    },
+    selectedBrandText: {
+        color: '#fff',
+    },
+    footer: {
+        padding: 16,
+        backgroundColor: '#f8f9fa',
+        borderTopWidth: 1,
+        borderTopColor: '#e9ecef',
+    },
+    saveButton: {
+        backgroundColor: '#000',
+        borderRadius: 12,
+        paddingVertical: 16,
+        alignItems: 'center',
+    },
+    saveButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontFamily: 'Zaloga',
+    },
+    disabledButton: {
+        backgroundColor: '#ccc',
+    },
+    bottomSpacing: {
+        height: 100,
+    },
 });

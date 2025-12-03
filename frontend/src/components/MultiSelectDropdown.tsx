@@ -94,16 +94,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
+    borderWidth: 1, // Reverted border width
     borderColor: '#000',
-    borderRadius: 12, // Sleekness
-    padding: 5,
+    borderRadius: 12, 
+    paddingVertical: 6, // Reduced padding
+    paddingHorizontal: 10, // Reduced padding
     backgroundColor: '#000',
   },
   dropdownText: {
     color: '#fff',
     marginRight: 5,
     fontFamily: 'Zaloga',
+    fontSize: 16, // Reverted font size
   },
   modalContainer: {
     flex: 1,
@@ -119,14 +121,14 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   option: {
-    paddingVertical: 10,
+    paddingVertical: 10, // Reverted padding
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 16, // Reverted font size
     fontFamily: 'Zaloga',
   },
   selectedOptionText: {
-    fontSize: 16,
+    fontSize: 16, // Reverted font size
     fontFamily: 'Zaloga',
   },
   buttonsContainer: {

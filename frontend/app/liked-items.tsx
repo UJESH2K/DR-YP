@@ -8,7 +8,6 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -16,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiCall } from '../src/lib/api';
 import type { Item } from '../src/types';
 import { mapProductsToItems } from '../src/utils/productMapping';
+import AnimatedLoadingScreen from '../src/components/common/AnimatedLoadingScreen';
 
 // This screen shows items the user has 'liked' for recommendation purposes
 export default function LikedItemsScreen() {
@@ -25,7 +25,6 @@ export default function LikedItemsScreen() {
   const fetchLikedItems = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch from the /api/likes endpoint
       const likedProducts = await apiCall('/api/likes');
       if (Array.isArray(likedProducts)) {
         const mappedItems = mapProductsToItems(likedProducts);
@@ -81,41 +80,34 @@ export default function LikedItemsScreen() {
       <View style={styles.itemDetails}>
         <Text style={styles.itemBrand}>{item.brand}</Text>
         <Text style={styles.itemTitle}>{item.title}</Text>
-        <Pressable onPress={() => handleUnlike(item.id, item.title)} style={styles.removeButton}>
-          <Text style={styles.removeText}>Unlike</Text>
+        <Pressable onPress={() => handleUnlike(item.id, item.title)} style={styles.unlikeButton}>
+          <Text style={styles.unlikeButtonText}>Unlike</Text>
         </Pressable>
       </View>
     </View>
   );
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}><Text style={styles.headerTitle}>Liked Items</Text></View>
-        <ActivityIndicator size="large" style={{ flex: 1 }} />
-      </SafeAreaView>
-    );
+    return <AnimatedLoadingScreen text="Loading your liked items..." />;
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Liked Items ({items.length})</Text>
-        <View style={{ width: 24 }} />
-      </View>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No Liked Items</Text>
-            <Text style={styles.emptySubtitle}>Products you swipe right on will appear here.</Text>
+            <Ionicons name="heart-dislike-outline" size={80} color="#ccc" />
+            <Text style={styles.emptyTitle}>No Liked Items Yet</Text>
+            <Text style={styles.emptySubtitle}>Swipe right on products you love, and they'll appear here!</Text>
+            <Pressable onPress={() => router.push('/(tabs)/home')} style={styles.discoverButton}>
+              <Text style={styles.discoverButtonText}>Discover Now</Text>
+            </Pressable>
           </View>
         }
       />
@@ -126,81 +118,89 @@ export default function LikedItemsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f8f8',
-      },
-      header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
-        backgroundColor: '#ffffff',
-      },
-      headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-      },
-      backButton: {},
-      listContainer: {
+        backgroundColor: '#f8f9fa',
+    },
+    listContainer: {
         padding: 16,
-      },
-      itemContainer: {
+    },
+    itemContainer: {
         flexDirection: 'row',
         backgroundColor: '#ffffff',
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
         alignItems: 'center',
-      },
-      itemImage: {
-        width: 70,
-        height: 70,
+    },
+    itemImage: {
+        width: 80,
+        height: 80,
         borderRadius: 8,
         backgroundColor: '#f0f0f0',
-      },
-      itemDetails: {
+        marginRight: 16,
+    },
+    itemDetails: {
         flex: 1,
-        marginLeft: 16,
-      },
-      itemBrand: {
-        fontSize: 12,
-        color: '#888',
-      },
-      itemTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1a1a1a',
-        marginVertical: 4,
-      },
-      removeButton: {
-        alignSelf: 'flex-start',
-        marginTop: 4,
-      },
-      removeText: {
-        color: '#FF6B6B',
+    },
+    itemBrand: {
         fontSize: 14,
-        fontWeight: '600',
-      },
-      emptyContainer: {
+        color: '#888',
+        fontFamily: 'Zaloga',
+    },
+    itemTitle: {
+        fontSize: 18,
+        color: '#1a1a1a',
+        fontFamily: 'Zaloga',
+        marginVertical: 4,
+    },
+    unlikeButton: {
+        alignSelf: 'flex-start',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        backgroundColor: '#f8d7da',
+    },
+    unlikeButtonText: {
+        color: '#dc3545',
+        fontSize: 14,
+        fontFamily: 'Zaloga',
+    },
+    emptyContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 40,
-        marginTop: -50,
-      },
-      emptyTitle: {
+        minHeight: 300, // Ensure it takes up enough space
+        marginTop: 50,
+    },
+    emptyTitle: {
         fontSize: 22,
-        fontWeight: 'bold',
+        fontFamily: 'Zaloga',
         color: '#1a1a1a',
         textAlign: 'center',
         marginBottom: 12,
-      },
-      emptySubtitle: {
+        marginTop: 20,
+    },
+    emptySubtitle: {
         fontSize: 16,
-        color: '#666',
+        fontFamily: 'Zaloga',
+        color: '#6c757d',
         textAlign: 'center',
-      },
+        marginBottom: 32,
+    },
+    discoverButton: {
+      backgroundColor: '#1a1a1a',
+      paddingHorizontal: 32,
+      paddingVertical: 14,
+      borderRadius: 100,
+    },
+    discoverButtonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontFamily: 'Zaloga',
+    },
 });

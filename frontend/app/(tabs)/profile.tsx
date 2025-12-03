@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/state/auth';
+import { useToastStore } from '../../src/state/toast';
 
 const Section = ({ header, children, footer }) => (
   <View style={styles.sectionContainer}>
@@ -37,6 +38,7 @@ const Row = ({ title, icon, onPress, isFirst, isLast, isDestructive = false }) =
 export default function ProfileScreen() {
   const router = useCustomRouter();
   const { user, isAuthenticated, isGuest, guestId, logout } = useAuthStore();
+  const showToast = useToastStore((state) => state.showToast);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -47,6 +49,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           await logout();
           router.replace('/login');
+          showToast('You have been logged out successfully.', 'success');
         },
       },
     ]);

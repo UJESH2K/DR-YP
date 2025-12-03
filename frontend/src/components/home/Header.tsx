@@ -11,9 +11,6 @@ export function Header() {
     <View style={styles.header}>
       <Text style={styles.headerTitle}>DRYP</Text>
       <View style={styles.headerIcons}>
-        <Pressable onPress={() => router.push('/(tabs)/search')}>
-          <Ionicons name="search-outline" size={28} color="#000" />
-        </Pressable>
         <Pressable onPress={() => router.push('/liked-items')}>
           <Ionicons name="heart-outline" size={28} color="#000" />
         </Pressable>

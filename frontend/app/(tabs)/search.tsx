@@ -21,7 +21,7 @@ import { rankItems } from '../../src/lib/recommender';
 import type { Item } from '../../src/types';
 import { mapProductsToItems } from '../../src/utils/productMapping';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
-import SearchLoadingState from '../../src/components/search/LoadingState';
+import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
 import { useCacheStore } from '../../src/state/cache';
 import { formatPrice } from '../../src/utils/formatting';
 
@@ -231,7 +231,7 @@ export default function SearchScreen() {
   );
 
   if (initialLoading) {
-    return <SearchLoadingState />;
+    return <AnimatedLoadingScreen text="Searching for inspiration..." />;
   }
 
   return (

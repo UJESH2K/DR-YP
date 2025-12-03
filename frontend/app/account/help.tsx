@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,20 @@ import {
   StatusBar,
   Alert,
   Linking,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useCustomRouter } from '../../src/hooks/useCustomRouter'
+  LayoutAnimation, // For animations
+  Platform,
+  UIManager,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function HelpScreen() {
-  const router = useCustomRouter()
-
-  const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null)
+  const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   const faqItems = [
     {
@@ -43,55 +49,69 @@ export default function HelpScreen() {
       question: 'How do I use a discount code?',
       answer: 'Enter your discount code at checkout in the "Promo Code" field. The discount will be applied automatically to eligible items.',
     },
-  ]
+  ];
 
   const contactOptions = [
     {
       id: 'chat',
       title: 'Live Chat',
       description: 'Chat with our support team',
-      icon: '💬',
+      icon: 'chatbubble-ellipses-outline',
       action: () => Alert.alert('Live Chat', 'Live chat feature coming soon!'),
     },
     {
       id: 'email',
       title: 'Email Support',
       description: 'support@dryp.com',
-      icon: '📧',
+      icon: 'mail-outline',
       action: () => Linking.openURL('mailto:support@dryp.com'),
     },
     {
       id: 'phone',
       title: 'Phone Support',
       description: '+1 (555) 123-DRYP',
-      icon: '📞',
+      icon: 'call-outline',
       action: () => Linking.openURL('tel:+15551234379'),
     },
     {
       id: 'help-center',
       title: 'Help Center',
       description: 'Browse our knowledge base',
-      icon: '📚',
+      icon: 'book-outline',
       action: () => Alert.alert('Help Center', 'Opening help center...'),
     },
-  ]
+  ];
+
+  const quickActions = [
+    {
+      id: 'report',
+      title: 'Report an Issue',
+      icon: 'alert-circle-outline',
+      action: () => Alert.alert('Report Issue', 'Report an issue with your order'),
+    },
+    {
+      id: 'size-guide',
+      title: 'Size Guide',
+      icon: 'cut-outline',
+      action: () => Alert.alert('Size Guide', 'Opening size guide...'),
+    },
+    {
+      id: 'shipping-info',
+      title: 'Shipping Information',
+      icon: 'cube-outline',
+      action: () => Alert.alert('Shipping Info', 'Opening shipping information...'),
+    },
+  ];
 
   const toggleFAQ = (id: number) => {
-    setExpandedFAQ(expandedFAQ === id ? null : id)
-  }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); // Animate expansion
+    setExpandedFAQ(expandedFAQ === id ? null : id);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Help & Support</Text>
-        <View style={styles.placeholder} />
-      </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>
           We're here to help! Find answers to common questions or get in touch with our support team.
@@ -107,7 +127,7 @@ export default function HelpScreen() {
                 style={styles.contactCard}
                 onPress={option.action}
               >
-                <Text style={styles.contactIcon}>{option.icon}</Text>
+                <Ionicons name={option.icon as any} size={28} color="#000" style={styles.contactIcon} />
                 <Text style={styles.contactTitle}>{option.title}</Text>
                 <Text style={styles.contactDescription}>{option.description}</Text>
               </Pressable>
@@ -126,9 +146,7 @@ export default function HelpScreen() {
                 onPress={() => toggleFAQ(item.id)}
               >
                 <Text style={styles.faqQuestionText}>{item.question}</Text>
-                <Text style={styles.faqArrow}>
-                  {expandedFAQ === item.id ? '−' : '+'}
-                </Text>
+                <Ionicons name={expandedFAQ === item.id ? "chevron-up" : "chevron-down"} size={20} color="#6c757d" />
               </Pressable>
               
               {expandedFAQ === item.id && (
@@ -144,68 +162,29 @@ export default function HelpScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           
-          <Pressable 
-            style={styles.actionButton}
-            onPress={() => Alert.alert('Report Issue', 'Report an issue with your order')}
-          >
-            <Text style={styles.actionIcon}>🚨</Text>
-            <Text style={styles.actionText}>Report an Issue</Text>
-            <Text style={styles.actionArrow}>›</Text>
-          </Pressable>
-          
-          <Pressable 
-            style={styles.actionButton}
-            onPress={() => Alert.alert('Size Guide', 'Opening size guide...')}
-          >
-            <Text style={styles.actionIcon}>📏</Text>
-            <Text style={styles.actionText}>Size Guide</Text>
-            <Text style={styles.actionArrow}>›</Text>
-          </Pressable>
-          
-          <Pressable 
-            style={styles.actionButton}
-            onPress={() => Alert.alert('Shipping Info', 'Opening shipping information...')}
-          >
-            <Text style={styles.actionIcon}>🚚</Text>
-            <Text style={styles.actionText}>Shipping Information</Text>
-            <Text style={styles.actionArrow}>›</Text>
-          </Pressable>
+          {quickActions.map((action) => (
+            <Pressable 
+              key={action.id}
+              style={styles.actionButton}
+              onPress={action.action}
+            >
+              <Ionicons name={action.icon as any} size={22} color="#000" style={styles.actionIcon} />
+              <Text style={styles.actionText}>{action.title}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#cccccc" />
+            </Pressable>
+          ))}
         </View>
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  backButton: {
-    padding: 5,
-  },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  placeholder: {
-    width: 34,
+    backgroundColor: '#f8f9fa',
   },
   content: {
     flex: 1,
@@ -213,101 +192,109 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#666666',
-    lineHeight: 22,
-    marginTop: 20,
-    marginBottom: 30,
+    color: '#6c757d',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginTop: 16,
+    marginBottom: 24,
+    fontFamily: 'Zaloga',
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 20,
+    fontFamily: 'Zaloga',
+    color: '#343a40',
     marginBottom: 16,
   },
   contactGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 12,
   },
   contactCard: {
     width: '48%',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
   contactIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   contactTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 16,
+    fontFamily: 'Zaloga',
+    color: '#000',
     marginBottom: 4,
   },
   contactDescription: {
     fontSize: 12,
-    color: '#666666',
+    fontFamily: 'Zaloga',
+    color: '#6c757d',
     textAlign: 'center',
   },
   faqItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   faqQuestion: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 16,
   },
   faqQuestionText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
+    fontFamily: 'Zaloga',
+    color: '#000',
     flex: 1,
-  },
-  faqArrow: {
-    fontSize: 20,
-    color: '#666666',
-    fontWeight: '300',
+    paddingRight: 10,
   },
   faqAnswer: {
+    paddingHorizontal: 16,
     paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   faqAnswerText: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: 'Zaloga',
+    color: '#6c757d',
     lineHeight: 20,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   actionIcon: {
-    fontSize: 20,
     marginRight: 12,
   },
   actionText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
+    fontFamily: 'Zaloga',
+    color: '#000',
     flex: 1,
-  },
-  actionArrow: {
-    fontSize: 20,
-    color: '#cccccc',
-    fontWeight: '300',
   },
   bottomSpacing: {
     height: 100,
   },
-})
+});

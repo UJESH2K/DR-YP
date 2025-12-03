@@ -6,15 +6,13 @@ import { useHomeScreenData } from '../../src/hooks/useHomeScreenData';
 import { useSwipeAnimations } from '../../src/hooks/useSwipeAnimations';
 import { Header } from '../../src/components/home/Header';
 import { Filters } from '../../src/components/home/Filters';
-import { LoadingState } from '../../src/components/home/LoadingState';
+import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
 import { EmptyState } from '../../src/components/home/EmptyState';
 import { Card } from '../../src/components/home/Card';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
 import { Item } from '../../src/types';
-import { useCustomRouter } from '../../src/hooks/useCustomRouter';
 
 export default function HomeScreen() {
-  const router = useCustomRouter();
   const {
     items,
     loading,
@@ -43,23 +41,15 @@ export default function HomeScreen() {
   const undoOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (swipeAnimations.canUndo) {
-      Animated.timing(undoOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(undoOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
+    Animated.timing(undoOpacity, {
+      toValue: swipeAnimations.canUndo ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
   }, [swipeAnimations.canUndo]);
 
   if (loading) {
-    return <LoadingState />;
+    return <AnimatedLoadingScreen text="Finding your next look..." />;
   }
 
   if (items.length === 0) {
@@ -109,20 +99,14 @@ export default function HomeScreen() {
           )}
         </View>
         
-        <Animated.View style={{ opacity: undoOpacity }}>
+        {/* Undo Button */}
+        <Animated.View style={[styles.undoContainer, { opacity: undoOpacity }]}>
           <Pressable 
-            style={[
-              styles.undoButton, 
-              swipeAnimations.lastSwipeDirection === 'left' ? { left: 30 } : { right: 30 }
-            ]} 
+            style={styles.undoButton} 
             onPress={swipeAnimations.undoSwipe}
             disabled={!swipeAnimations.canUndo}
           >
-            <Ionicons 
-              name={swipeAnimations.lastSwipeDirection === 'left' ? "arrow-redo" : "arrow-undo"} 
-              size={40} 
-              color="black" 
-            />
+            <Ionicons name="refresh" size={28} color="#007AFF" />
           </Pressable>
         </Animated.View>
       </SafeAreaView>
@@ -139,15 +123,32 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  cardStack: { flex: 1, alignItems: 'center', paddingTop: 20 },
-  undoButton: {
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f5f5f5' 
+  },
+  cardStack: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    marginBottom: 20, // Make space for the undo button if it were at the bottom
+  },
+  undoContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 90, // Position it above the tab bar
+    alignSelf: 'center',
+  },
+  undoButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });

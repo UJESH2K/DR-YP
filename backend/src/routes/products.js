@@ -94,6 +94,18 @@ router.get('/colors', async (req, res, next) => {
   }
 });
 
+// @route   GET /api/products/tags
+// @desc    Get a unique list of all tags
+// @access  Public
+router.get('/tags', async (req, res, next) => {
+  try {
+    const tags = await Product.find({ isActive: true }).distinct('tags');
+    res.json(tags);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // @route   PUT /api/products/:id
 // @desc    Update a product
 // @access  Private (Vendor only)

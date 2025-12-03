@@ -18,6 +18,7 @@ import { apiCall } from '../lib/api';
 import { useCartStore } from '../../src/state/cart';
 import { useWishlistStore } from '../../src/state/wishlist';
 import { useAuthStore } from '../../src/state/auth';
+import AnimatedLoadingScreen from './common/AnimatedLoadingScreen';
 import { Product, ProductOption, ProductVariant } from '../types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -227,7 +228,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
   if (loading || !product) {
     return (
       <Animated.View style={[styles.detailsView, { transform: [{ translateY: detailsPosition }] }]}>
-        <ActivityIndicator size="large" style={styles.centered} />
+        <AnimatedLoadingScreen text="Loading product details..." />
       </Animated.View>
     );
   };

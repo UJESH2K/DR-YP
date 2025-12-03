@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import MultiSelectDropdown from '../MultiSelectDropdown';
+import { Ionicons } from '@expo/vector-icons'; // Import Ionicons
 
 interface FiltersProps {
   filters: {
@@ -24,22 +25,20 @@ interface FiltersProps {
 export function Filters({ filters, selectedFilters, onSelectionChange }: FiltersProps) {
   return (
     <View style={styles.filtersContainer}>
+      <Ionicons name="filter-outline" size={24} color="#000" style={styles.filterIcon} />
       <MultiSelectDropdown
-        containerStyle={{ width: 110 }}
         options={filters.brands}
         selectedOptions={selectedFilters.selectedBrands}
         onSelectionChange={onSelectionChange.setSelectedBrands}
         placeholder="Brands"
       />
       <MultiSelectDropdown
-        containerStyle={{ width: 110 }}
         options={filters.categories}
         selectedOptions={selectedFilters.selectedCategories}
         onSelectionChange={onSelectionChange.setSelectedCategories}
         placeholder="Categories"
       />
       <MultiSelectDropdown
-        containerStyle={{ width: 110 }}
         options={filters.colors}
         selectedOptions={selectedFilters.selectedColors}
         onSelectionChange={onSelectionChange.setSelectedColors}
@@ -54,6 +53,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 10,
     justifyContent: 'center',
+    alignItems: 'center', // Align items vertically
     gap: 10,
+  },
+  filterIcon: {
+    marginRight: 5, // Space between icon and dropdown
   },
 });
