@@ -76,7 +76,7 @@ router.get('/mine', identifyUser, async (req, res, next) => {
       return res.json([]);
     }
     const orders = await Order.find(query)
-      .populate('items.product', 'name images brand')
+      .populate({ path: 'items.product' })
       .sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) { next(error); }

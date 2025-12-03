@@ -87,22 +87,12 @@ export default function AddressesScreen() {
 
   const handleAddAddress = () => {
     router.push('/account/add-address');
-  }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Addresses</Text>
-        <Pressable onPress={handleAddAddress} style={styles.addButton}>
-          <Text style={styles.addText}>+</Text>
-        </Pressable>
-      </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {addresses.map((address) => (
           <View key={address._id} style={styles.addressCard}>
@@ -140,13 +130,24 @@ export default function AddressesScreen() {
               </View>
             </View>
             
-            <Text style={styles.addressName}>{address.name}</Text>
-            <Text style={styles.addressLine}>{address.address}</Text>
-            <Text style={styles.addressLine}>{address.city}</Text>
-            <Text style={styles.addressPhone}>{address.phone}</Text>
+            <View style={styles.addressDetails}>
+              <Text style={styles.addressName}>{address.name}</Text>
+              {address.company && <Text style={styles.addressLine}>{address.company}</Text>}
+              <Text style={styles.addressLine}>{address.line1}</Text>
+              {address.line2 && <Text style={styles.addressLine}>{address.line2}</Text>}
+              <Text style={styles.addressLine}>
+                {`${address.city}, ${address.state} ${address.pincode}`}
+              </Text>
+              <Text style={styles.addressLine}>{address.country}</Text>
+              {address.phone && <Text style={styles.addressPhone}>T: {address.phone}</Text>}
+            </View>
           </View>
         ))}
         
+        <Pressable onPress={handleAddAddress} style={styles.addButton}>
+          <Text style={styles.addButtonText}>Add New Address</Text>
+        </Pressable>
+
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
@@ -171,26 +172,27 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   backText: {
-    fontSize: 24,
+    fontSize: 28,
     color: '#000000',
+    fontFamily: 'Zaloga',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 28,
     color: '#000000',
+    fontFamily: 'Zaloga',
   },
   addButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 100,
+    marginTop: 20,
+    alignSelf: 'center',
   },
-  addText: {
-    fontSize: 20,
+  addButtonText: {
     color: '#ffffff',
-    fontWeight: '300',
+    fontSize: 18,
+    fontFamily: 'Zaloga',
   },
   content: {
     flex: 1,
@@ -220,10 +222,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addressType: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
     color: '#000000',
     marginRight: 8,
+    fontFamily: 'Zaloga',
   },
   defaultBadge: {
     backgroundColor: '#4CAF50',
@@ -232,9 +234,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   defaultText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#ffffff',
-    fontWeight: '600',
+    fontFamily: 'Zaloga',
   },
   addressActions: {
     flexDirection: 'row',
@@ -250,28 +252,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffebee',
   },
   actionText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
     color: '#000000',
+    fontFamily: 'Zaloga',
   },
   deleteText: {
     color: '#f44336',
   },
   addressName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
     color: '#000000',
     marginBottom: 4,
+    fontFamily: 'Zaloga',
   },
   addressLine: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666666',
     marginBottom: 2,
+    fontFamily: 'Zaloga',
   },
   addressPhone: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666666',
     marginTop: 4,
+    fontFamily: 'Zaloga',
   },
   bottomSpacing: {
     height: 100,

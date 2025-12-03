@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import TextTicker from 'react-native-text-ticker';
 import { useAuthStore } from '../src/state/auth';
 import { apiCall } from '../src/lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -75,9 +76,25 @@ export default function VendorRegisterScreen() {
     }
   };
 
+  const handleSocialLogin = (provider: string) => {
+    Alert.alert('Coming Soon', `Login with ${provider} is not available yet.`);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+        <Text style={styles.logo}>DRYP</Text>
+        <TextTicker
+          style={styles.marqueeText}
+          duration={15000}
+          loop
+          repeatSpacer={50}
+          marqueeDelay={1000}
+        >
+          STREETWEAR • MODERN ESSENTIALS • HANDCRAFT • PREMIUM
+        </TextTicker>
+        </View>
         <View style={styles.header}>
           <Text style={styles.title}>Become a Vendor</Text>
           <Text style={styles.subtitle}>Create your storefront on DR-YP</Text>
@@ -115,6 +132,18 @@ export default function VendorRegisterScreen() {
           )}
         </Pressable>
         
+        <View style={styles.socialLoginContainer}>
+          <View style={styles.separator}>
+            <Text style={styles.separatorText}>OR</Text>
+          </View>
+          <Pressable style={styles.socialButton} onPress={() => handleSocialLogin('Google')}>
+            <Text style={styles.socialButtonText}>Continue with Google</Text>
+          </Pressable>
+          <Pressable style={styles.socialButton} onPress={() => handleSocialLogin('Apple')}>
+            <Text style={styles.socialButtonText}>Continue with Apple</Text>
+          </Pressable>
+        </View>
+
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Back to Login</Text>
         </Pressable>
@@ -127,10 +156,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   scrollContent: { padding: 24 },
   header: { alignItems: 'center', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#1a1a1a' },
-  subtitle: { fontSize: 16, color: '#666666', marginTop: 4 },
+  logo: {
+    fontSize: 80,
+    fontFamily: 'Zaloga',
+    color: '#1a1a1a',
+    textAlign: 'center',
+  },
+  marqueeText: {
+    fontSize: 16,
+    fontFamily: 'Zaloga',
+    color: '#666666',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  title: { fontSize: 28, fontFamily: 'Zaloga', color: '#1a1a1a' },
+  subtitle: { fontSize: 16, color: '#666666', marginTop: 4, fontFamily: 'Zaloga' },
   formSection: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1a1a1a', marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontFamily: 'Zaloga', color: '#1a1a1a', marginBottom: 12 },
   input: {
     borderWidth: 1,
     borderColor: '#e0e0e0',
@@ -138,9 +180,10 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     marginBottom: 12,
+    fontFamily: 'Zaloga',
   },
   registerButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FF6B6B',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -148,9 +191,35 @@ const styles = StyleSheet.create({
   registerButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Zaloga',
   },
   disabledButton: { backgroundColor: '#cccccc' },
   backButton: { marginTop: 16, alignItems: 'center' },
-  backButtonText: { color: '#666666' },
+  backButtonText: { color: '#666666', fontFamily: 'Zaloga' },
+  socialLoginContainer: {
+    marginVertical: 20,
+  },
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  separatorText: {
+    fontFamily: 'Zaloga',
+    color: '#666666',
+    paddingHorizontal: 10,
+  },
+  socialButton: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  socialButtonText: {
+    fontSize: 16,
+    fontFamily: 'Zaloga',
+    color: '#1a1a1a',
+  },
 });

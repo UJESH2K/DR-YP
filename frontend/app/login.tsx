@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import TextTicker from 'react-native-text-ticker';
+import { FontAwesome } from '@expo/vector-icons';
 import { useAuthStore } from '../src/state/auth';
 import { useCustomRouter } from '../src/hooks/useCustomRouter';
 
@@ -47,6 +49,10 @@ export default function LoginScreen() {
     }
   };
 
+  const handleSocialLogin = (provider: string) => {
+    Alert.alert('Coming Soon', `Login with ${provider} is not available yet.`);
+  };
+
   const handleSkip = () => {
     router.replace('/(tabs)/home');
   };
@@ -61,6 +67,18 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
+        <View style={styles.header}>
+        <Text style={styles.logo}>DRYP</Text>
+        <TextTicker
+          style={styles.marqueeText}
+          duration={15000}
+          loop
+          repeatSpacer={50}
+          marqueeDelay={1000}
+        >
+          STREETWEAR • MODERN ESSENTIALS • HANDCRAFT • PREMIUM
+        </TextTicker>
+        </View>
         <View style={styles.header}>
           <Text style={styles.title}>{mode === 'login' ? 'Welcome Back' : 'Create Account'}</Text>
           <Text style={styles.subtitle}>
@@ -111,6 +129,20 @@ export default function LoginScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.socialLoginContainer}>
+          <View style={styles.separator}>
+            <Text style={styles.separatorText}>OR</Text>
+          </View>
+          <View style={styles.socialIconsContainer}>
+            <Pressable style={styles.socialButton} onPress={() => handleSocialLogin('Google')}>
+              <FontAwesome name="google" size={24} color="black" />
+            </Pressable>
+            <Pressable style={styles.socialButton} onPress={() => handleSocialLogin('Apple')}>
+              <FontAwesome name="apple" size={24} color="black" />
+            </Pressable>
+          </View>
+        </View>
+
         <View style={styles.footer}>
           <Pressable onPress={toggleMode} style={styles.toggleButton}>
             <Text style={styles.toggleButtonText}>
@@ -145,15 +177,28 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
     paddingHorizontal: 24,
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
   },
   header: {
-    marginTop: 60,
-    marginBottom: 40,
+    marginTop: 20,
+    marginBottom: 20,
     alignItems: 'center',
   },
+  logo: {
+    fontSize: 60,
+    fontFamily: 'Zaloga',
+    color: '#1a1a1a',
+    textAlign: 'center',
+  },
+  marqueeText: {
+    fontSize: 14,
+    fontFamily: 'Zaloga',
+    color: '#666666',
+    textAlign: 'center',
+    marginVertical: 5,
+  },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     color: '#1a1a1a',
     marginBottom: 8,
     fontFamily: 'Zaloga',
@@ -162,21 +207,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
     textAlign: 'center',
-    fontFamily: 'JosefinSans_400Regular',
+    fontFamily: 'Zaloga',
   },
   form: {
-    // flex: 1,
+    marginVertical: 10,
   },
   input: {
     borderWidth: 1,
     borderColor: '#e0e0e0',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#ffffff',
-    marginBottom: 16,
-    fontFamily: 'JosefinSans_400Regular',
+    marginBottom: 12,
+    fontFamily: 'Zaloga',
   },
   primaryButton: {
     backgroundColor: '#FF6B6B',
@@ -188,36 +233,65 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontFamily: 'JosefinSans_600SemiBold',
+    fontFamily: 'Zaloga',
+  },
+  socialLoginContainer: {
+    marginVertical: 10,
+  },
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  separatorText: {
+    fontFamily: 'Zaloga',
+    color: '#666666',
+    paddingHorizontal: 10,
+  },
+  socialIconsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  socialButton: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 10,
   },
   footer: {
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
   toggleButton: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 10,
   },
   toggleButtonText: {
     color: '#FF6B6B',
     fontSize: 16,
-    fontFamily: 'JosefinSans_500Medium',
+    fontFamily: 'Zaloga',
   },
   skipButton: {
     alignItems: 'center',
-    paddingVertical: 16,
-    marginBottom: 24,
+    paddingVertical: 10,
+    marginBottom: 15,
   },
   skipButtonText: {
     color: '#666666',
     fontSize: 16,
-    fontFamily: 'JosefinSans_500Medium',
+    fontFamily: 'Zaloga',
   },
   terms: {
     fontSize: 12,
     color: '#999999',
     textAlign: 'center',
     lineHeight: 18,
-    fontFamily: 'JosefinSans_400Regular',
+    fontFamily: 'Zaloga',
   },
 
 });

@@ -250,7 +250,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
   return (
     <Animated.View style={[styles.detailsView, { transform: [{ translateY: detailsPosition }] }]} accessibilityViewIsModal>
       <Pressable onPress={onClose} style={styles.closeButton}>
-        <Ionicons name="close-circle" size={36} color="#333" />
+        <Ionicons name="chevron-down" size={30} color="#333" />
       </Pressable>
       
       <ScrollView contentContainerStyle={[styles.detailsContent, { paddingBottom: bottomPadding }]} scrollEventThrottle={16} style={{ flex: 1 }} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={true}>
@@ -322,8 +322,24 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
 
 const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  detailsView: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '95%', backgroundColor: '#ffffff', borderTopLeftRadius: 20, borderTopRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 20, paddingTop: 20 },
-  closeButton: { position: 'absolute', top: 10, right: 10, zIndex: 10, padding: 10 },
+  detailsView: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '95%', backgroundColor: '#ffffff', borderTopLeftRadius: 20, borderTopRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 20, paddingTop: 30 },
+  closeButton: {
+    position: 'absolute',
+    top: 0,
+    alignSelf: 'center',
+    zIndex: 10,
+    backgroundColor: '#ffffffff',
+    borderRadius: 20,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#ffffffff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+  },
   detailsImageCarousel: { height: IMAGE_HEIGHT },
   imageWrapper: { width: '100%', height: IMAGE_HEIGHT, overflow: 'hidden' },
   detailsContent: { paddingBottom: 40 },

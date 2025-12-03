@@ -1,13 +1,18 @@
 const mongoose = require('mongoose');
 
 const AddressSchema = new mongoose.Schema({
-  line1: { type: String, required: false, trim: true },
+  name: { type: String, required: true, trim: true },
+  phone: { type: String, required: true, trim: true },
+  company: { type: String, required: false, trim: true },
+  line1: { type: String, required: true, trim: true },
   line2: { type: String, required: false, trim: true },
-  city: { type: String, required: false, trim: true },
-  state: { type: String, required: false, trim: true },
-  pincode: { type: String, required: false, trim: true },
-  country: { type: String, default: 'India' },
-}, { _id: false });
+  city: { type: String, required: true, trim: true },
+  state: { type: String, required: true, trim: true },
+  pincode: { type: String, required: true, trim: true },
+  country: { type: String, required: true, trim: true },
+  type: { type: String, enum: ['Home', 'Work', 'Other'], default: 'Home' },
+  isDefault: { type: Boolean, default: false },
+}, { _id: true });
 
 const PaymentMethodSchema = new mongoose.Schema({
   type: { type: String, required: true, enum: ['card'] },

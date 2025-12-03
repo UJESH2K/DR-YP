@@ -10,8 +10,29 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/state/auth';
+
+const Section = ({ header, children, footer }) => (
+  <View style={styles.sectionContainer}>
+    {header && <Text style={styles.sectionHeader}>{header.toUpperCase()}</Text>}
+    <View style={styles.sectionBody}>
+      {children}
+    </View>
+    {footer && <Text style={styles.sectionFooter}>{footer}</Text>}
+  </View>
+);
+
+const Row = ({ title, icon, onPress, isFirst, isLast, isDestructive = false }) => (
+  <Pressable onPress={onPress} style={({ pressed }) => [styles.row, isLast && { borderBottomWidth: 0 }, pressed && styles.rowPressed]}>
+    <View style={styles.rowLeft}>
+      {icon && <View style={styles.rowIcon}>{icon}</View>}
+      <Text style={[styles.rowLabel, isDestructive && styles.destructiveText]}>{title}</Text>
+    </View>
+    {!isDestructive && <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />}
+  </Pressable>
+);
+
 
 export default function ProfileScreen() {
   const router = useCustomRouter();
@@ -25,85 +46,87 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/login'); // Go to login after logout
+          router.replace('/login');
         },
       },
     ]);
   };
-
-  const menuItems = [
-    { id: 'addresses', title: 'Addresses', icon: <Ionicons name="location-outline" size={22} color="#000" />, onPress: () => router.push('/account/addresses') },
-    { id: 'payment', title: 'Payment Methods', icon: <Ionicons name="card-outline" size={22} color="#000" />, onPress: () => router.push('/account/payment') },
-    { id: 'settings', title: 'Settings', icon: <Feather name="settings" size={22} color="#000" />, onPress: () => router.push('/account/settings') },
-    { id: 'style', title: 'Style Preference', icon: <Ionicons name="shirt-outline" size={22} color="#000" />, onPress: () => router.push('/account/style') },
-    { id: 'notifications', title: 'Notifications', icon: <Ionicons name="notifications-outline" size={22} color="#000" />, onPress: () => router.push('/account/notifications') },
-    { id: 'help', title: 'Help & Support', icon: <Feather name="help-circle" size={22} color="#000" />, onPress: () => router.push('/account/help') },
-    { id: 'about', title: 'About', icon: <Ionicons name="information-circle-outline" size={22} color="#000" />, onPress: () => router.push('/account/about') },
+  
+  const accountItems = [
+    { id: 'orders', title: 'My Orders', icon: <Ionicons name="cube-outline" size={22} color="#333" />, onPress: () => router.push('/account/orders') },
+    { id: 'addresses', title: 'Shipping Addresses', icon: <Ionicons name="location-outline" size={22} color="#333" />, onPress: () => router.push('/account/addresses') },
+    { id: 'payment', title: 'Payment Methods', icon: <Ionicons name="card-outline" size={22} color="#333" />, onPress: () => router.push('/account/payment') },
+  ];
+  
+  const preferencesItems = [
+    { id: 'settings', title: 'General Settings', icon: <Ionicons name="settings-outline" size={22} color="#333" />, onPress: () => router.push('/account/settings') },
+    { id: 'style', title: 'Style Preferences', icon: <Ionicons name="shirt-outline" size={22} color="#333" />, onPress: () => router.push('/account/style') },
   ];
 
-  if (isGuest && !isAuthenticated) {
+  const supportItems = [
+    { id: 'help', title: 'Help & Support', icon: <Ionicons name="help-buoy-outline" size={22} color="#333" />, onPress: () => router.push('/account/help') },
+    { id: 'about', title: 'About Us', icon: <Ionicons name="information-circle-outline" size={22} color="#333" />, onPress: () => router.push('/account/about') },
+  ];
+
+  if (isGuest || !isAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <View style={styles.guestHeader}>
-          <Text style={styles.guestHeaderText}>Account</Text>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+            <Text style={styles.headerTitle}>Account</Text>
         </View>
-        <View style={styles.profileSection}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>G</Text>
-          </View>
-          <Text style={styles.profileName}>Guest User</Text>
-          {guestId && <Text style={styles.profileEmail}>ID: {guestId}</Text>}
-        </View>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.guestCtaSection}>
-            <Text style={styles.guestCtaText}>Want to save your preferences and orders?</Text>
-            <Pressable style={styles.signInButton} onPress={() => router.push('/login')}>
-              <Text style={styles.signInButtonText}>Sign In or Create Account</Text>
-            </Pressable>
-          </View>
+        <ScrollView style={styles.scrollView}>
+            <View style={styles.profileHeader}>
+                <View style={[styles.avatar, styles.guestAvatar]}>
+                    <Ionicons name="person-outline" size={40} color="#8e8e93" />
+                </View>
+                <Text style={styles.profileName}>Guest User</Text>
+            </View>
+            <View style={styles.guestCtaContainer}>
+                <Text style={styles.guestCtaText}>Create an account to save your preferences and unlock all features.</Text>
+                <Pressable style={styles.signInButton} onPress={() => router.replace('/login')}>
+                    <Text style={styles.signInButtonText}>Sign In or Create Account</Text>
+                </Pressable>
+            </View>
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // Existing authenticated user view
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Account</Text>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable style={styles.profileSection} onPress={() => router.push('/account/profile')}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+      <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+            <Text style={styles.headerTitle}>Account</Text>
+        </View>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <Pressable style={styles.profileHeader} onPress={() => router.push('/account/profile-details')}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase()}</Text>
           </View>
-          <Text style={styles.profileName}>{user.name}</Text>
-          <Text style={styles.profileEmail}>{user.email}</Text>
+          <View>
+            <Text style={styles.profileName}>{user?.name}</Text>
+            <Text style={styles.profileEmail}>{user?.email}</Text>
+          </View>
         </Pressable>
 
-        <View style={styles.menuSection}>
-          {menuItems.map((item) => (
-            <Pressable key={item.id} style={styles.menuItem} onPress={item.onPress}>
-              <View style={styles.menuItemLeft}>
-                <Text style={styles.menuItemIcon}>{item.icon}</Text>
-                <Text style={styles.menuItemTitle}>{item.title}</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Section header="My Account">
+          {accountItems.map((item, index) => <Row key={item.id} {...item} isFirst={index === 0} isLast={index === accountItems.length - 1} />)}
+        </Section>
+        
+        <Section header="Preferences">
+          {preferencesItems.map((item, index) => <Row key={item.id} {...item} isFirst={index === 0} isLast={index === preferencesItems.length - 1} />)}
+        </Section>
+        
+        <Section header="Support">
+          {supportItems.map((item, index) => <Row key={item.id} {...item} isFirst={index === 0} isLast={index === supportItems.length - 1} />)}
+        </Section>
+        
+        <Section>
+            <Row title="Logout" onPress={handleLogout} isFirst isLast isDestructive />
+        </Section>
 
-        <View style={styles.signOutSection}>
-          <Pressable style={styles.signOutButton} onPress={handleLogout}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.bottomSpacing} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -112,172 +135,141 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f2f2f7',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eaeaea',
+    borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
+    fontFamily: 'Zaloga',
     fontSize: 28,
     color: '#000',
-    fontFamily: 'Zaloga',
   },
-  content: {
+  scrollView: {
     flex: 1,
   },
-  profileSection: {
+  profileHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
-  profileAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f5f5f5',
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#e5e5ea',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 15,
+    marginRight: 16,
   },
-  profileAvatarText: {
-    fontSize: 32,
+  avatarText: {
     fontFamily: 'Zaloga',
+    fontSize: 32,
+    color: '#3c3c43',
   },
   profileName: {
-    fontSize: 22,
-    color: '#000000',
-    marginBottom: 4,
     fontFamily: 'Zaloga',
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#000',
   },
   profileEmail: {
-    fontSize: 16,
-    color: '#666666',
     fontFamily: 'Zaloga',
-  },
-  menuSection: {
-    paddingHorizontal: 20,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuItemIcon: {
-    fontSize: 20,
-    marginRight: 15,
-  },
-  menuItemTitle: {
     fontSize: 16,
-    color: '#000000',
+    color: '#8e8e93',
+    marginTop: 2,
+  },
+  sectionContainer: {
+    marginTop: 20,
+    marginHorizontal: 16,
+  },
+  sectionHeader: {
     fontFamily: 'Zaloga',
+    fontSize: 14,
+    color: '#6c757d',
+    paddingLeft: 16,
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
-  menuItemArrow: {
-    fontSize: 20,
-    color: '#cccccc',
-    fontWeight: '300',
-  },
-  signOutSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-  },
-  signOutButton: {
-    backgroundColor: '#f5f5f5',
-    paddingVertical: 15,
+  sectionBody: {
+    backgroundColor: '#ffffff',
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+  sectionFooter: {
+    fontFamily: 'Zaloga',
+    fontSize: 13,
+    color: '#6c757d',
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    minHeight: 50,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#c6c6c8',
+    backgroundColor: '#fff',
+  },
+  rowPressed: {
+    backgroundColor: '#f2f2f7',
+  },
+  rowLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  signOutText: {
-    color: '#ff4444',
-    fontSize: 16,
-    fontFamily: 'Zaloga',
+  rowIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
-  bottomSpacing: {
-    height: 40,
+  rowLabel: {
+    fontFamily: 'Zaloga',
+    fontSize: 17,
+    color: '#000000',
+  },
+  destructiveText: {
+    color: '#ff3b30',
+    textAlign: 'center',
+    flex: 1,
   },
   // Guest view styles
-  guestHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 10,
+  guestAvatar: {
+    backgroundColor: '#e5e5ea',
+  },
+  guestCtaContainer: {
+    margin: 16,
+    padding: 20,
     backgroundColor: '#fff',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eaeaea',
-  },
-  guestHeaderText: {
-    fontSize: 18,
-    color: '#000',
-    fontFamily: 'Zaloga',
-  },
-  guestView: { // This style is no longer used directly for the main layout, replaced by profileSection and guestCtaSection
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  guestSubtitle: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  guestButton: { // No longer needed as it's part of menuItems
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
     borderRadius: 12,
-    marginBottom: 10,
-    width: '100%',
     alignItems: 'center',
   },
-  guestButtonText: { // No longer needed
-    color: '#000',
+  guestCtaText: {
+    fontFamily: 'Zaloga',
     fontSize: 16,
-    fontWeight: '600',
+    textAlign: 'center',
+    color: '#3c3c43',
+    marginBottom: 16,
   },
   signInButton: {
     backgroundColor: '#000',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
+    paddingVertical: 14,
+    paddingHorizontal: 30,
     borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
   },
   signInButtonText: {
     color: '#fff',
-    fontSize: 16,
     fontFamily: 'Zaloga',
-  },
-  guestCtaSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    marginTop: 20,
-  },
-  guestCtaText: {
     fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 15,
-    fontFamily: 'Zaloga',
   },
 });

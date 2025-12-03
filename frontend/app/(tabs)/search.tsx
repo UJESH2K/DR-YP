@@ -253,10 +253,7 @@ export default function SearchScreen() {
             </Pressable>
           </View>
           <Pressable onPress={() => setFilterModalVisible(true)}>
-              <Ionicons name="filter-outline" size={28} color="#000" style={{marginLeft: 10}} />
-          </Pressable>
-          <Pressable onPress={() => router.push('/(tabs)/cart')}>
-            <Ionicons name="cart-outline" size={31} color="#000" />
+              <Ionicons name="options-outline" size={28} color="#000" style={{marginLeft: 10}} />
           </Pressable>
         </View>
         <FlatList

@@ -11,18 +11,22 @@ export default function AddAddressScreen() {
   const router = useCustomRouter();
   const [address, setAddress] = useState({
     name: '',
-    street: '',
+    phone: '',
+    company: '',
+    line1: '',
+    line2: '',
     city: '',
     state: '',
-    zipCode: '',
+    pincode: '',
     country: 'US',
+    type: 'Home',
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const showToast = useToastStore((state) => state.showToast);
 
   const handleAddAddress = async () => {
-    if (!address.name || !address.street || !address.city || !address.state || !address.zipCode) {
-      showToast('Please fill in all fields.', 'error');
+    if (!address.name || !address.line1 || !address.city || !address.state || !address.pincode || !address.phone || !address.country) {
+      showToast('Please fill in all required fields.', 'error');
       return;
     }
 
@@ -31,10 +35,16 @@ export default function AddAddressScreen() {
       const profile = await apiCall('/api/users/profile');
       const existingAddresses = profile.addresses || [];
 
+      // If this is the first address, make it the default
+      const addressToSave = {
+        ...address,
+        isDefault: existingAddresses.length === 0,
+      };
+
       const result = await apiCall('/api/users/profile', {
         method: 'PUT',
         body: JSON.stringify({
-          addresses: [...existingAddresses, address],
+          addresses: [...existingAddresses, addressToSave],
         }),
       });
 
@@ -53,59 +63,97 @@ export default function AddAddressScreen() {
     }
   };
 
+  const AddressTypeSelector = () => (
+    <View style={styles.typeSelectorContainer}>
+      {['Home', 'Work', 'Other'].map((type) => (
+        <Pressable
+          key={type}
+          style={[
+            styles.typeButton,
+            address.type === type && styles.typeButtonSelected,
+          ]}
+          onPress={() => setAddress(p => ({ ...p, type }))}
+        >
+          <Text
+            style={[
+              styles.typeButtonText,
+              address.type === type && styles.typeButtonTextSelected,
+            ]}
+          >
+            {type}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </Pressable>
-        <Text style={styles.title}>Add New Address</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
       <View style={styles.form}>
+        <AddressTypeSelector />
         <TextInput
           style={styles.input}
-          placeholder="Full Name"
+          placeholder="Full Name*"
           value={address.name}
           onChangeText={(text) => setAddress(p => ({ ...p, name: text }))}
         />
         <TextInput
           style={styles.input}
-          placeholder="Street Address"
-          value={address.street}
-          onChangeText={(text) => setAddress(p => ({ ...p, street: text }))}
+          placeholder="Phone Number*"
+          value={address.phone}
+          onChangeText={(text) => setAddress(p => ({ ...p, phone: text }))}
+          keyboardType="phone-pad"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Company (Optional)"
+          value={address.company}
+          onChangeText={(text) => setAddress(p => ({ ...p, company: text }))}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Street Address*"
+          value={address.line1}
+          onChangeText={(text) => setAddress(p => ({ ...p, line1: text }))}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Apt, Suite, etc. (Optional)"
+          value={address.line2}
+          onChangeText={(text) => setAddress(p => ({ ...p, line2: text }))}
         />
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 2 }]}
-            placeholder="City"
+            placeholder="City*"
             value={address.city}
             onChangeText={(text) => setAddress(p => ({ ...p, city: text }))}
           />
           <TextInput
             style={[styles.input, { flex: 1 }]}
-            placeholder="State"
+            placeholder="State*"
             value={address.state}
             onChangeText={(text) => setAddress(p => ({ ...p, state: text }))}
           />
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="ZIP Code"
-          keyboardType="number-pad"
-          value={address.zipCode}
-          onChangeText={(text) => setAddress(p => ({ ...p, zipCode: text }))}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Country"
-          value={address.country}
-          onChangeText={(text) => setAddress(p => ({ ...p, country: text }))}
-        />
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder="Pincode*"
+            keyboardType="number-pad"
+            value={address.pincode}
+            onChangeText={(text) => setAddress(p => ({ ...p, pincode: text }))}
+          />
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder="Country*"
+            value={address.country}
+            onChangeText={(text) => setAddress(p => ({ ...p, country: text }))}
+          />
+        </View>
 
         <Pressable style={styles.addButton} onPress={handleAddAddress} disabled={isProcessing}>
-          {isProcessing ? <Text>Adding...</Text> : <Text style={styles.addButtonText}>Add Address</Text>}
+          {isProcessing ? <Text style={styles.addButtonText}>Adding...</Text> : <Text style={styles.addButtonText}>Add Address</Text>}
         </Pressable>
       </View>
     </SafeAreaView>
@@ -114,18 +162,6 @@ export default function AddAddressScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  backButton: {},
-  title: { fontSize: 20, fontWeight: 'bold' },
   form: { padding: 16 },
   input: {
     borderWidth: 1,
@@ -136,6 +172,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 12,
     backgroundColor: '#fff',
+    fontFamily: 'Zaloga',
   },
   row: { flexDirection: 'row', gap: 12 },
   addButton: {
@@ -145,5 +182,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  addButtonText: { color: '#fff', fontSize: 18, fontFamily: 'Zaloga' },
+  typeSelectorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+    backgroundColor: '#e9ecef',
+    borderRadius: 12,
+    padding: 4,
+  },
+  typeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  typeButtonSelected: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  typeButtonText: {
+    fontSize: 16,
+    color: '#6c757d',
+    fontFamily: 'Zaloga',
+  },
+  typeButtonTextSelected: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
 });

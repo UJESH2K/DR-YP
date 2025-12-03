@@ -40,7 +40,7 @@ export default function SingleSelectDropdown({
         <Text style={styles.dropdownText}>
           {selectedLabel}
         </Text>
-        <Ionicons name="chevron-down" size={16} color="white" />
+        <Ionicons name="chevron-down" size={20} color="#8e8e93" />
       </Pressable>
 
       <Modal
@@ -65,22 +65,19 @@ export default function SingleSelectDropdown({
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#000',
-    borderRadius: 20,
-    padding: 15,
-    backgroundColor: '#000',
+    justifyContent: 'flex-end',
   },
   dropdownText: {
-    color: '#fff',
+    color: '#8e8e93', // A standard iOS subtitle gray
     marginRight: 5,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontFamily: 'Zaloga',
   },
   modalContainer: {
     flex: 1,
@@ -100,9 +97,13 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 16,
+    fontFamily: 'Zaloga',
+    color: '#000000',
   },
   selectedOptionText: {
     fontSize: 16,
+    fontFamily: 'Zaloga',
     fontWeight: 'bold',
+    color: '#007AFF', // Standard iOS blue for selection
   },
 });
