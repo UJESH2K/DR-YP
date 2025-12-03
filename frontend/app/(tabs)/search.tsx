@@ -1,429 +1,390 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
-  ScrollView,
   Pressable,
   Image,
   StatusBar,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  Modal,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { debounce } from 'lodash';
+import { apiCall } from '../../src/lib/api';
+import { rankItems } from '../../src/lib/recommender';
+import type { Item } from '../../src/types';
+import { mapProductsToItems } from '../../src/utils/productMapping';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
+import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
+import { useCacheStore } from '../../src/state/cache';
+import { formatPrice } from '../../src/utils/formatting';
+
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
 export default function SearchScreen() {
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState<Item[]>([]);
+  const [trending, setTrending] = useState<Item[]>([]);
+  
+  const { categories: cachedCategories, brands: cachedBrands, setCategories: setCachedCategories, setBrands: setCachedBrands } = useCacheStore();
+  
+  const [brands, setBrands] = useState<string[]>(cachedBrands.data || []);
+  const [categories, setCategories] = useState<string[]>(cachedCategories.data || []);
+  const [colors, setColors] = useState<string[]>([]);
+  const [recommendations, setRecommendations] = useState<Item[]>([]);
+  const [recentSearches, setRecentSearches] = useState<{ query: string; image: string }[]>([]);
+  
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
-  const brands = [
-    'Nike', 'Adidas', 'Zara', 'H&M', 'Uniqlo', 'Puma', 'Gucci', 'Louis Vuitton', 'Chanel', 'Dior'
-  ]
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
+  
+  const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const trendingItems = [
-    { id: 1, title: 'Oversized Hoodie', price: 89, image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300&h=400&fit=crop', brand: 'Nike' },
-    { id: 2, title: 'Vintage Jeans', price: 129, image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=300&h=400&fit=crop', brand: 'Zara' },
-    { id: 3, title: 'Sneakers', price: 199, image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=300&h=400&fit=crop', brand: 'Adidas' },
-  ]
 
-  const newArrivals = [
-    { id: 4, title: 'Silk Dress', price: 299, image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=300&h=400&fit=crop', brand: 'H&M' },
-    { id: 5, title: 'Leather Jacket', price: 399, image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=300&h=400&fit=crop', brand: 'Uniqlo' },
-    { id: 6, title: 'Summer Top', price: 59, image: 'https://images.unsplash.com/photo-1583743814966-8936f37f4678?w=300&h=400&fit=crop', brand: 'Zara' },
-  ]
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
 
-  const menItems = [
-    { id: 7, title: 'Formal Shirt', price: 79, image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=300&h=400&fit=crop', brand: 'H&M' },
-    { id: 8, title: 'Chinos', price: 99, image: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=300&h=400&fit=crop', brand: 'Uniqlo' },
-  ]
+  const fetchInitialData = async () => {
+    try {
+      const now = Date.now();
+      
+      const productsPromise = apiCall('/api/products?limit=20');
 
-  const womenItems = [
-    { id: 9, title: 'Floral Dress', price: 149, image: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=300&h=400&fit=crop', brand: 'Zara' },
-    { id: 10, title: 'Blazer', price: 199, image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=300&h=400&fit=crop', brand: 'H&M' },
-  ]
+      const brandsPromise = 
+        cachedBrands.timestamp && now - cachedBrands.timestamp < CACHE_DURATION
+        ? Promise.resolve(cachedBrands.data)
+        : apiCall('/api/products/brands').then(data => {
+            if(Array.isArray(data)) setCachedBrands(data);
+            return data;
+          });
+      
+      const categoriesPromise =
+        cachedCategories.timestamp && now - cachedCategories.timestamp < CACHE_DURATION
+        ? Promise.resolve(cachedCategories.data)
+        : apiCall('/api/products/categories').then(data => {
+            if(Array.isArray(data)) setCachedCategories(data);
+            return data;
+          });
 
-  const categories = [
-    { id: 'men', name: 'MEN', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=center', color: '#000000' },
-    { id: 'women', name: 'WOMEN', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=600&fit=crop&crop=center', color: '#8B5CF6' },
-  ]
+      const colorsPromise = apiCall('/api/products/colors');
 
-  const youMightLike = []
-  const related = []
+      const [products, fetchedBrands, fetchedCategories, fetchedColors] = await Promise.all([
+        productsPromise,
+        brandsPromise,
+        categoriesPromise,
+        colorsPromise,
+      ]);
+
+      if (Array.isArray(products)) {
+        const items = mapProductsToItems(products);
+        setTrending(items.slice(0, 10));
+        setRecommendations(rankItems(items).slice(0, 10));
+      }
+      if (Array.isArray(fetchedBrands)) setBrands(fetchedBrands);
+      if (Array.isArray(fetchedCategories)) setCategories(fetchedCategories);
+      if (Array.isArray(fetchedColors)) setColors(fetchedColors);
+
+    } catch (error) { console.error("Failed to fetch initial data:", error); }
+    finally { setInitialLoading(false); }
+  };
+
+  const fetchData = useCallback(async () => {
+    setIsSearching(true);
+    setResults([]);
+    let endpoint = '/api/products?';
+    const params = new URLSearchParams();
+
+    if (searchQuery) params.append('search', searchQuery);
+    if (selectedBrand) params.append('brand', selectedBrand);
+    if (selectedCategory) params.append('category', selectedCategory);
+    if (selectedColor) params.append('color', selectedColor);
+    if (minPrice) params.append('minPrice', minPrice);
+    if (maxPrice) params.append('maxPrice', maxPrice);
+
+    endpoint += params.toString();
+
+    try {
+      const products = await apiCall(endpoint);
+      const items = Array.isArray(products) ? mapProductsToItems(products) : [];
+      setResults(items);
+      if (searchQuery && items.length > 0) {
+        setRecentSearches(prev => {
+          const newSearch = { query: searchQuery, image: items[0].image };
+          const updatedSearches = [newSearch, ...prev.filter(rs => rs.query !== searchQuery)];
+          return updatedSearches.slice(0, 5);
+        });
+      }
+    } catch (error) { console.error("Failed to fetch data:", error); } 
+    finally { setIsSearching(false); }
+  }, [searchQuery, selectedBrand, selectedCategory, selectedColor, minPrice, maxPrice]);
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
+  
+  const applyFilters = () => {
+    fetchData();
+    setFilterModalVisible(false);
+  };
+
+  const clearFilters = () => {
+    setSelectedBrand(null);
+    setSelectedCategory(null);
+    setSelectedColor(null);
+    setMinPrice('');
+    setMaxPrice('');
+    fetchData();
+    setFilterModalVisible(false);
+  };
+  
+  // UI Rendering
+  const renderProductCard = ({ item, large = false }: { item: Item, large?: boolean }) => (
+    <Pressable style={large ? styles.largeProductCard : styles.productCard} onPress={() => {
+      setSelectedProductIdForModal(item.id);
+      setIsModalVisible(true);
+    }}>
+      <Image source={{ uri: item.image }} style={large ? styles.largeProductImage : styles.productImage} />
+      <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
+      <Text style={styles.productBrand} numberOfLines={1}>{item.brand}</Text>
+      <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
+    </Pressable>
+  );
+  
+  const renderFilterModal = () => (
+    <Modal visible={isFilterModalVisible} onRequestClose={() => setFilterModalVisible(false)} transparent={true} animationType="slide">
+        <View style={styles.modalContainer}>
+            <View style={[styles.modalContent, { height: '80%'}]}>
+              <ScrollView>
+                <Text style={styles.sectionTitle}>Filters</Text>
+
+                <Text style={styles.subSectionTitle}>Price Range</Text>
+                <View style={styles.priceRangeContainer}>
+                  <TextInput
+                    style={styles.priceInput}
+                    placeholder="Min Price"
+                    keyboardType="numeric"
+                    value={minPrice}
+                    onChangeText={setMinPrice}
+                  />
+                  <TextInput
+                    style={styles.priceInput}
+                    placeholder="Max Price"
+                    keyboardType="numeric"
+                    value={maxPrice}
+                    onChangeText={setMaxPrice}
+                  />
+                </View>
+
+                <Text style={styles.subSectionTitle}>Category</Text>
+                <View style={styles.filterRow}>
+                  {categories.map((category) => (
+                    <Pressable key={category} style={[styles.filterButton, selectedCategory === category && styles.filterButtonSelected]} onPress={() => setSelectedCategory(c => c === category ? null : category)}>
+                        <Text style={[styles.filterButtonText, selectedCategory === category && styles.filterButtonTextSelected]}>{category}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={styles.subSectionTitle}>Brand</Text>
+                <View style={styles.filterRow}>
+                  {brands.map((brand) => (
+                    <Pressable key={brand} style={[styles.filterButton, selectedBrand === brand && styles.filterButtonSelected]} onPress={() => setSelectedBrand(b => b === brand ? null : brand)}>
+                        <Text style={[styles.filterButtonText, selectedBrand === brand && styles.filterButtonTextSelected]}>{brand}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={styles.subSectionTitle}>Color</Text>
+                <View style={styles.filterRow}>
+                  {colors.map((color) => (
+                    <Pressable key={color} style={[styles.filterButton, selectedColor === color && styles.filterButtonSelected]} onPress={() => setSelectedColor(c => c === color ? null : color)}>
+                        <Text style={[styles.filterButtonText, selectedColor === color && styles.filterButtonTextSelected]}>{color}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                
+                <View style={styles.modalButtons}>
+                    <Pressable style={[styles.modalButton, styles.clearButton]} onPress={clearFilters}>
+                        <Text style={styles.clearButtonText}>Clear</Text>
+                    </Pressable>
+                    <Pressable style={[styles.modalButton, styles.applyButton]} onPress={applyFilters}>
+                        <Text style={styles.applyButtonText}>Apply</Text>
+                    </Pressable>
+                </View>
+              </ScrollView>
+            </View>
+        </View>
+    </Modal>
+  );
+
+  if (initialLoading) {
+    return <AnimatedLoadingScreen text="Searching for inspiration..." />;
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 20,
-          paddingTop: 16,
-          paddingBottom: 10,
-          backgroundColor: '#fff',
-          borderBottomWidth: 1,
-          borderBottomColor: '#eaeaea',
-        }}
-      >
-        {/* Logo */}
-        <Text
-          style={{
-            fontSize: 33,
-            fontWeight: '00',
-            color: '#000',
-            letterSpacing: 1.5,
+    <>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        {renderFilterModal()}
+        <View style={styles.header}>
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search products..."
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              onSubmitEditing={fetchData} // Trigger search on keyboard submit
+            />
+            <Pressable onPress={fetchData} style={styles.searchIcon}>
+              <Ionicons name="search" size={24} color="#888" />
+            </Pressable>
+          </View>
+          <Pressable onPress={() => setFilterModalVisible(true)}>
+              <Ionicons name="options-outline" size={28} color="#000" style={{marginLeft: 10}} />
+          </Pressable>
+        </View>
+        <FlatList
+          data={[
+            { type: 'recent-searches', data: recentSearches, title: 'Recent Searches' },
+            { type: 'search-results', data: results, title: 'Search Results' },
+            { type: 'trending', data: trending, title: 'Trending Now' },
+            { type: 'recommendations', data: recommendations, title: 'You Might Also Like' },
+          ]}
+          keyExtractor={(item) => item.type}
+          renderItem={({ item }) => {
+            if (isSearching && (item.type === 'search-results')) {
+              return <ActivityIndicator size="large" style={{marginTop: 50}} />;
+            }
+
+            if (item.type === 'recent-searches' && recentSearches.length > 0 && results.length === 0 && searchQuery.length < 3) {
+              return (
+                <View>
+                  <Text style={styles.sectionTitle}>{item.title}</Text>
+                  <FlatList
+                    horizontal
+                    data={item.data}
+                    renderItem={({ item: recentSearch }) => (
+                      <Pressable style={styles.recentSearchCard} onPress={() => {
+                        setSearchQuery(recentSearch.query);
+                        fetchData();
+                      }}>
+                        <Image source={{ uri: recentSearch.image }} style={styles.recentSearchImage} />
+                        <Text style={styles.recentSearchTitle}>{recentSearch.query}</Text>
+                      </Pressable>
+                    )}
+                    keyExtractor={(recentSearch) => recentSearch.query}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 20 }}
+                  />
+                </View>
+              );
+            }
+
+            if (item.type === 'search-results' && (results.length > 0 || searchQuery.length > 2)) {
+              return (
+                <>
+                  <Text style={styles.sectionTitle}>{item.title}</Text>
+                  <FlatList
+                      data={results}
+                      renderItem={({item}) => renderProductCard({item, large: false})}
+                      keyExtractor={(item) => item.id.toString()}
+                      numColumns={2}
+                      columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 20 }}
+                      ListEmptyComponent={<Text style={styles.emptyText}>No products found for your search.</Text>}
+                  />
+                </>
+              )
+            }
+
+            if ((item.type === 'trending' || item.type === 'recommendations') && (results.length === 0 && searchQuery.length < 3)) {
+               return (
+                  <View style={item.type === 'recommendations' ? {marginTop: 20} : {}}>
+                      <Text style={styles.sectionTitle}>{item.title}</Text>
+                      <FlatList
+                          horizontal
+                          data={item.data as Item[]}
+                          renderItem={({item: product}) => renderProductCard({item: product, large: true})}
+                          keyExtractor={(product) => `${item.type}-${product.id}`}
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ paddingHorizontal: 20 }}
+                      />
+                  </View>
+               )
+            }
+            
+            return null;
           }}
-        >
-          DRYP
-        </Text>
-
-            {/* Search */}
-            <Pressable
-              onPress={() => router.push('/(tabs)/search')}
-              style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: '#fff',
-            borderColor: '#000',        // ✅ solid black border
-            borderWidth: 2,             // ✅ make it bold/visible
-            borderRadius: 25,           // ✅ rounded corners
-            paddingHorizontal: 18,
-            paddingVertical: 2,
-            flex: 1,
-            marginHorizontal: 19,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
-            elevation: 3, 
-              }}
-            >
-              <Text style={{ fontSize: 16, color: '#333', marginRight: 6 }}>🔍</Text>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '100',
-                  color: '#111',
-                  letterSpacing: 0.2,
-                }}
-              >
-                Search...
-              </Text>
-            </Pressable>
-
-        {/* Cart Icon */}
-        <Pressable onPress={() => router.push('/cart')}>
-  <Ionicons name="cart-outline" size={31} color="#000" />
-</Pressable>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Categories Section */}
-        {/* <View style={styles.categoriesContainer}>
-          {categories.map((category) => (
-            <Pressable key={category.id} style={styles.categoryCard}>
-              <Image source={{ uri: category.image }} style={styles.categoryImage} />
-              <View style={[styles.categoryOverlay, { backgroundColor: category.color }]}>
-                <Text style={styles.categoryText}>{category.name}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View> */}
-
-        {/* Brands Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>BRANDS</Text>
-          {brands.length === 0 ? (
-            <Text style={styles.emptyText}>No Brands Found</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {brands.map((brand, index) => (
-                <View key={index} style={styles.brandCard}>
-                  <Text>{brand}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* Trending Now Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>TRENDING NOW</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {trendingItems.map((item) => (
-              <View key={item.id} style={styles.productCard}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
-                <Text style={styles.productTitle}>{item.title}</Text>
-                <Text style={styles.productBrand}>{item.brand}</Text>
-                <Text style={styles.productPrice}>${item.price}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* New Arrivals Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>NEW ARRIVALS</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {newArrivals.map((item) => (
-              <View key={item.id} style={styles.productCard}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
-                <Text style={styles.productTitle}>{item.title}</Text>
-                <Text style={styles.productBrand}>{item.brand}</Text>
-                <Text style={styles.productPrice}>${item.price}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Men Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>MEN</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {menItems.map((item) => (
-              <View key={item.id} style={styles.productCard}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
-                <Text style={styles.productTitle}>{item.title}</Text>
-                <Text style={styles.productBrand}>{item.brand}</Text>
-                <Text style={styles.productPrice}>${item.price}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Women Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>WOMEN</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {womenItems.map((item) => (
-              <View key={item.id} style={styles.productCard}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
-                <Text style={styles.productTitle}>{item.title}</Text>
-                <Text style={styles.productBrand}>{item.brand}</Text>
-                <Text style={styles.productPrice}>${item.price}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* You Might Like Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>YOU MIGHT LIKE</Text>
-          {youMightLike.length === 0 ? (
-            <Text style={styles.emptyText}>No Clothes you might like Found</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {youMightLike.map((item, index) => (
-                <View key={index} style={styles.likeCard}>
-                  <Text>{item}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* Related Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>RELATED</Text>
-          {related.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              {/* Empty space for related items */}
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {related.map((item, index) => (
-                <View key={index} style={styles.relatedCard}>
-                  <Text>{item}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
-    </SafeAreaView>
-  )
+          ListFooterComponent={<View style={{height: 40}} />}
+        />
+      </SafeAreaView>
+      <ProductDetailModal
+        productId={selectedProductIdForModal}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+      />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
-    justifyContent: 'space-between',
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#000000',
-    letterSpacing: -1,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
-  },
-  notificationButton: {
-    padding: 8,
-  },
-  notificationIcon: {
-    fontSize: 20,
-  },
-  searchContainer: {
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eaeaea' },
+  searchBarContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    marginHorizontal: 15,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#000000',
-  },
-  content: {
-    flex: 1,
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    gap: 15,
-  },
-  categoryCard: {
-    flex: 1,
-    height: 200,
+    height: 40,
+    backgroundColor: '#f0f0f0',
     borderRadius: 20,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  categoryImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  categoryOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '40%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  categoryText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 15,
-    letterSpacing: 0.5,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666666',
-    fontWeight: '400',
-    paddingVertical: 10,
-  },
-  emptyContainer: {
-    height: 50,
-  },
-  brandCard: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 15,
+    paddingHorizontal: 15,
     marginRight: 10,
   },
-  trendingCard: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 15,
-    marginRight: 10,
-  },
-  arrivalCard: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 15,
-    marginRight: 10,
-  },
-  likeCard: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 15,
-    marginRight: 10,
-  },
-  relatedCard: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 15,
-    marginRight: 10,
-  },
-  bottomSpacing: {
-    height: 100,
-  },
-  productCard: {
-    width: 150,
-    marginRight: 15,
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    padding: 10,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  productImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 10,
-    backgroundColor: '#f5f5f5',
-  },
-  productTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  productBrand: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 4,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#000000',
-  },
-})
+  searchInput: { flex: 1, fontSize: 16, paddingRight: 10, fontFamily: 'Zaloga' },
+  searchIcon: { paddingLeft: 10 },
+  sectionTitle: { fontSize: 20, color: '#000', marginVertical: 15, paddingHorizontal: 20, fontFamily: 'Zaloga' },
+  brandScrollView: { marginBottom: 10 },
+  brandButton: { backgroundColor: '#f0f0f0', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginRight: 10, height: 40 },
+  brandButtonSelected: { backgroundColor: '#000' },
+  brandButtonText: { color: '#000', fontFamily: 'Zaloga' },
+  brandButtonTextSelected: { color: '#fff' },
+  emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16, color: '#666' },
+  productCard: { width: '48%', marginBottom: 20 },
+  productImage: { width: '100%', aspectRatio: 0.8, borderRadius: 10, backgroundColor: '#f5f5f5' },
+  largeProductCard: { width: 180, marginRight: 15 },
+  largeProductImage: { width: '100%', height: 220, borderRadius: 10, backgroundColor: '#f5f5f5' },
+  productTitle: { fontSize: 14, color: '#1a1a1a', marginTop: 10, fontFamily: 'Zaloga' },
+  productBrand: { fontSize: 12, color: '#888', marginVertical: 2, fontFamily: 'Zaloga' },
+  productPrice: { fontSize: 14, color: '#1a1a1a', marginTop: 4, fontFamily: 'Zaloga' },
+  modalContainer: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalContent: { backgroundColor: 'white', padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '80%' },
+  subSectionTitle: { fontSize: 18, color: '#000', marginVertical: 10, fontFamily: 'Zaloga' },
+  filterButton: { backgroundColor: '#f0f0f0', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginRight: 10, height: 40 },
+  filterButtonSelected: { backgroundColor: '#000' },
+  filterButtonText: { color: '#000', fontFamily: 'Zaloga' },
+  filterButtonTextSelected: { color: '#fff' },
+  priceRangeContainer: { flexDirection: 'row', justifyContent: 'space-between' },
+  priceInput: { flex: 1, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20, paddingHorizontal: 15, fontSize: 16, marginRight: 10, fontFamily: 'Zaloga' },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
+  modalButton: { flex: 1, padding: 15, borderRadius: 10, alignItems: 'center' },
+  clearButton: { backgroundColor: '#f0f0f0', marginRight: 10 },
+  clearButtonText: { color: '#000', fontFamily: 'Zaloga' },
+  applyButton: { backgroundColor: '#000' },
+  applyButtonText: { color: '#fff', fontFamily: 'Zaloga' },
+  recentSearchCard: { width: 120, marginRight: 15 },
+  recentSearchImage: { width: '100%', height: 120, borderRadius: 10, backgroundColor: '#f5f5f5' },
+  recentSearchTitle: { fontSize: 14, color: '#1a1a1a', marginTop: 10, fontFamily: 'Zaloga' },
+});

@@ -1,7 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const morgan = require('morgan');
+const morgan = 'morgan';
+const path = require('path'); // Import path module
 const connectDatabase = require('./src/config/database');
 
 // Route imports
@@ -10,19 +11,33 @@ const productRoutes = require('./src/routes/products');
 const vendorRoutes = require('./src/routes/vendors');
 const orderRoutes = require('./src/routes/orders');
 const likeRoutes = require('./src/routes/likes');
+const wishlistRoutes = require('./src/routes/wishlist');
 const paymentRoutes = require('./src/routes/payments');
+const userRoutes = require('./src/routes/users');
+const uploadRoutes = require('./src/routes/upload'); // Import the new upload route
+const analyticsRoutes = require('./src/routes/analytics'); // Import analytics routes
+const vendorAnalyticsRoutes = require('./src/routes/analytics/vendor');
 
 const app = express();
 
 // Middlewares
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allow all methods
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-guest-id'],
+}));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+
+
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Custom logging middleware to track API calls
 app.use((req, res, next) => {
-  console.log(`\n🔥 API CALL: ${req.method} ${req.path}`);
+  console.log(`
+🔥 API CALL: ${req.method} ${req.path}`);
   console.log(`📱 From: ${req.get('origin') || 'localhost'}`);
   if (req.body && Object.keys(req.body).length > 0) {
     console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
@@ -41,7 +56,12 @@ app.use('/api/products', productRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/likes', likeRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/upload', uploadRoutes); // Use the upload route
+app.use('/api/analytics', analyticsRoutes); // Use the analytics route
+app.use('/api/analytics', vendorAnalyticsRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars
@@ -63,5 +83,3 @@ const PORT = process.env.PORT || 5000; // Backend runs on port 5000
 })();
 
 module.exports = app;
-
-

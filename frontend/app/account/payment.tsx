@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,133 +7,134 @@ import {
   Pressable,
   StatusBar,
   Alert,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
+import { apiCall } from '../../src/lib/api';
+import SwipeableRow from '../../src/components/SwipeableRow';
+import { useFocusEffect } from 'expo-router';
+import { useToastStore } from '../../src/state/toast';
 
 export default function PaymentScreen() {
-  const router = useRouter()
+  const router = useCustomRouter();
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const showToast = useToastStore((state) => state.showToast);
 
-  const [paymentMethods] = useState([
-    {
-      id: 1,
-      type: 'Credit Card',
-      brand: 'Visa',
-      last4: '4242',
-      expiry: '12/26',
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: 'Credit Card',
-      brand: 'Mastercard',
-      last4: '8888',
-      expiry: '08/25',
-      isDefault: false,
-    },
-    {
-      id: 3,
-      type: 'Digital Wallet',
-      brand: 'PayPal',
-      email: 'john.doe@email.com',
-      isDefault: false,
-    },
-  ])
-
-  const getCardIcon = (brand: string) => {
-    switch (brand) {
-      case 'Visa': return '💳'
-      case 'Mastercard': return '💳'
-      case 'PayPal': return '💰'
-      default: return '💳'
+  const fetchPaymentMethods = useCallback(async () => {
+    try {
+      const methods = await apiCall('/api/payments/methods');
+      setPaymentMethods(methods || []);
+    } catch (error) {
+      console.error('Failed to fetch payment methods:', error);
+      showToast('Could not load payment methods.', 'error');
     }
-  }
+  }, [showToast]);
 
-  const handleEditPayment = (id: number) => {
-    Alert.alert('Edit Payment', `Edit payment method ${id}`)
-  }
+  useFocusEffect(
+    useCallback(() => {
+      fetchPaymentMethods();
+    }, [fetchPaymentMethods])
+  );
 
-  const handleDeletePayment = (id: number) => {
-    Alert.alert('Delete Payment Method', `Delete payment method ${id}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive' },
-    ])
-  }
+  const handleDeletePayment = async (id: string) => {
+    Alert.alert(
+      'Delete Payment Method',
+      'Are you sure you want to delete this payment method?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiCall(`/api/payments/methods/${id}`, { method: 'DELETE' });
+              showToast('Payment method deleted.', 'success');
+              fetchPaymentMethods(); // Refresh list
+            } catch (error) {
+              console.error('Failed to delete payment method:', error);
+              showToast('Could not delete payment method.', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSetDefaultPaymentMethod = async (id: string) => {
+    try {
+      await apiCall(`/api/payments/methods/${id}/default`, { method: 'PUT' });
+      showToast('Default payment method updated.', 'success');
+      fetchPaymentMethods(); // Refresh list
+    } catch (error) {
+      console.error('Failed to set default payment method:', error);
+      showToast('Could not set default payment method.', 'error');
+    }
+  };
 
   const handleAddPayment = () => {
-    Alert.alert('Add Payment Method', 'Add new payment method functionality')
-  }
+    router.push('/account/add-payment-method');
+  };
+
+  const getCardIcon = (brand: string) => {
+    // Simple emoji mapping for card brands
+    const lowerBrand = brand?.toLowerCase();
+    if (lowerBrand === 'visa') return '🔵';
+    if (lowerBrand === 'mastercard') return '🔴';
+    if (lowerBrand === 'amex') return '⚪';
+    return '💳';
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Payment Methods</Text>
-        <Pressable onPress={handleAddPayment} style={styles.addButton}>
-          <Text style={styles.addText}>+</Text>
-        </Pressable>
-      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {paymentMethods.map((method) => (
-          <View key={method.id} style={styles.paymentCard}>
-            <View style={styles.paymentHeader}>
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentIcon}>{getCardIcon(method.brand)}</Text>
-                <View style={styles.paymentDetails}>
-                  <Text style={styles.paymentBrand}>{method.brand}</Text>
-                  <Text style={styles.paymentType}>{method.type}</Text>
+        {paymentMethods.length > 0 ? (
+          paymentMethods.map(method => (
+            <SwipeableRow key={method._id} onDelete={() => handleDeletePayment(method._id)}>
+              <View style={styles.paymentCard}>
+                <View style={styles.paymentHeader}>
+                  <View style={styles.paymentInfo}>
+                    <Text style={styles.paymentIcon}>{getCardIcon(method.brand)}</Text>
+                    <View style={styles.paymentDetails}>
+                      <Text style={styles.paymentBrand}>{method.brand} Card</Text>
+                      <Text style={styles.cardNumber}>•••• {method.last4}</Text>
+                    </View>
+                  </View>
+                  {method.isDefault && (
+                    <View style={styles.defaultBadge}>
+                      <Text style={styles.defaultText}>Default</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.paymentActions}>
+                  {!method.isDefault && (
+                    <Pressable
+                      onPress={() => handleSetDefaultPaymentMethod(method._id)}
+                      style={styles.actionButton}
+                    >
+                      <Text style={styles.actionText}>Set as Default</Text>
+                    </Pressable>
+                  )}
                 </View>
               </View>
-              
-              {method.isDefault && (
-                <View style={styles.defaultBadge}>
-                  <Text style={styles.defaultText}>Default</Text>
-                </View>
-              )}
-            </View>
-            
-            {method.last4 ? (
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardNumber}>•••• •••• •••• {method.last4}</Text>
-                <Text style={styles.cardExpiry}>Expires {method.expiry}</Text>
-              </View>
-            ) : (
-              <Text style={styles.paymentEmail}>{method.email}</Text>
-            )}
-            
-            <View style={styles.paymentActions}>
-              <Pressable 
-                onPress={() => handleEditPayment(method.id)}
-                style={styles.actionButton}
-              >
-                <Text style={styles.actionText}>Edit</Text>
-              </Pressable>
-              <Pressable 
-                onPress={() => handleDeletePayment(method.id)}
-                style={[styles.actionButton, styles.deleteButton]}
-              >
-                <Text style={[styles.actionText, styles.deleteText]}>Remove</Text>
-              </Pressable>
-            </View>
+            </SwipeableRow>
+          ))
+        ) : (
+          <View style={styles.emptyStateContainer}>
+            <Text style={styles.emptyStateText}>No payment methods found.</Text>
+            <Text style={styles.emptyStateSubText}>Add a new payment method to get started.</Text>
           </View>
-        ))}
-        
-        <View style={styles.securityInfo}>
-          <Text style={styles.securityTitle}>🔒 Security</Text>
-          <Text style={styles.securityText}>
-            Your payment information is encrypted and secure. We never store your full card details.
-          </Text>
-        </View>
-        
+        )}
+
+        <Pressable onPress={handleAddPayment} style={styles.addButton}>
+          <Text style={styles.addButtonText}>Add New Payment Method</Text>
+        </Pressable>
+
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -141,43 +142,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  backButton: {
-    padding: 5,
-  },
-  backText: {
-    fontSize: 24,
-    color: '#000000',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  addButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addText: {
-    fontSize: 20,
-    color: '#ffffff',
-    fontWeight: '300',
-  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  addButton: {
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 100,
+    marginTop: 20,
+    alignSelf: 'center',
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontFamily: 'Zaloga',
   },
   paymentCard: {
     backgroundColor: '#ffffff',
@@ -203,20 +183,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   paymentIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 32,
+    marginRight: 16,
   },
-  paymentDetails: {
-    flex: 1,
-  },
+  paymentDetails: {},
   paymentBrand: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontFamily: 'Zaloga',
     color: '#000000',
   },
-  paymentType: {
-    fontSize: 14,
+  cardNumber: {
+    fontSize: 16,
+    fontFamily: 'Zaloga',
     color: '#666666',
+    marginTop: 2,
   },
   defaultBadge: {
     backgroundColor: '#4CAF50',
@@ -225,31 +205,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   defaultText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#ffffff',
-    fontWeight: '600',
-  },
-  cardInfo: {
-    marginBottom: 12,
-  },
-  cardNumber: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  cardExpiry: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  paymentEmail: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 12,
+    fontFamily: 'Zaloga',
   },
   paymentActions: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 12,
   },
   actionButton: {
     paddingHorizontal: 12,
@@ -257,35 +223,30 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#f0f0f0',
   },
-  deleteButton: {
-    backgroundColor: '#ffebee',
-  },
   actionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
-  },
-  deleteText: {
-    color: '#f44336',
-  },
-  securityInfo: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 24,
-  },
-  securityTitle: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#000000',
-    marginBottom: 8,
-  },
-  securityText: {
-    fontSize: 14,
-    color: '#666666',
-    lineHeight: 20,
+    fontFamily: 'Zaloga',
   },
   bottomSpacing: {
     height: 100,
   },
-})
+  emptyStateContainer: {
+    marginTop: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  emptyStateText: {
+    fontFamily: 'Zaloga',
+    fontSize: 18,
+    color: '#333',
+  },
+  emptyStateSubText: {
+    fontFamily: 'Zaloga',
+    fontSize: 14,
+    color: '#888',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+});

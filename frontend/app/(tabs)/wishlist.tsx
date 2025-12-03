@@ -1,155 +1,265 @@
-import React from 'react'
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  ScrollView,
+  FlatList,
   Image,
   Pressable,
+  StyleSheet,
   StatusBar,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useWishlistStore } from '../../src/state/wishlist'
-import { useCartStore } from '../../src/state/cart'
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useFocusEffect } from 'expo-router';
+import { useCartStore } from '../../src/state/cart';
+import { apiCall } from '../../src/lib/api';
+import type { Item } from '../../src/types';
+import { mapProductsToItems } from '../../src/utils/productMapping';
+import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
+import ProductDetailModal from '../../src/components/ProductDetailModal';
 
 export default function WishlistScreen() {
-  const wishlistItems = useWishlistStore((s) => s.items)
-  const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist)
-  const addToCart = useCartStore((s) => s.addToCart)
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { addToCart } = useCartStore();
+  const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
 
-  const formatPrice = (price: number) => 
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
+  const fetchWishlist = useCallback(async () => {
+    setLoading(true);
+    try {
+      const likedProducts = await apiCall('/api/wishlist');
+      if (Array.isArray(likedProducts)) {
+        const mappedItems = mapProductsToItems(likedProducts);
+        setItems(mappedItems);
+      } else {
+        setItems([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch wishlist:', error);
+      Alert.alert('Error', 'Could not load your wishlist. Please try again later.');
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleAddToCart = (item: any) => {
-    addToCart({
-      id: item.id,
-      title: item.title,
-      price: item.price,
-      image: item.image,
-      brand: item.brand,
-      quantity: 1,
-    })
+  // useFocusEffect will re-fetch data every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchWishlist();
+    }, [fetchWishlist])
+  );
+
+  const handleAddToCart = (item: Item) => {
+    try {
+      addToCart({
+        productId: item.id,
+        title: item.title,
+        price: item.price,
+        image: item.image,
+        brand: item.brand,
+        quantity: 1,
+      });
+      Alert.alert('Success', `${item.title} added to cart!`);
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      Alert.alert('Error', 'Failed to add item to cart');
+    }
+  };
+
+  const handleRemoveFromWishlist = async (itemId: string, title: string) => {
+    Alert.alert(
+      'Remove from Wishlist',
+      `Are you sure you want to remove "${title}" from your wishlist?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await apiCall(`/api/wishlist/${itemId}`, { method: 'DELETE' });
+              if (result && result.success) {
+                // Optimistically update the UI
+                setItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+                Alert.alert('Removed', `"${title}" has been removed from your wishlist.`);
+              } else {
+                throw new Error(result?.message || 'Failed to remove item.');
+              }
+            } catch (error) {
+              console.error('Failed to remove from wishlist:', error);
+              Alert.alert('Error', 'Could not remove item. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const formatPrice = (price: number) => {
+    return `$${price.toFixed(2)}`;
+  };
+
+  const renderWishlistItem = ({ item }: { item: Item }) => (
+    <Pressable onPress={() => {
+      setSelectedProductId(item.id);
+      setIsModalVisible(true);
+    }}>
+      <View style={styles.itemContainer}>
+        <Image source={{ uri: item.image }} style={styles.itemImage} />
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemBrand}>{item.brand}</Text>
+          <Text style={styles.itemTitle}>{item.title}</Text>
+          <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+          <View style={styles.itemActions}>
+            <Pressable onPress={() => handleAddToCart(item)} style={styles.addToCartButton}>
+              <Text style={styles.addToCartText}>Add to Cart</Text>
+            </Pressable>
+            <Pressable onPress={() => handleRemoveFromWishlist(item.id, item.title)} style={styles.removeButton}>
+              <Text style={styles.removeText}>Remove</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+
+  if (loading) {
+    return <AnimatedLoadingScreen text="Loading your wishlist..." />;
+  }
+
+  if (items.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.header}><Text style={styles.headerTitle}>My Wishlist</Text></View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
+          <Text style={styles.emptySubtitle}>Items you like will appear here.</Text>
+          <Pressable onPress={() => router.push('/(tabs)/home')} style={styles.discoverButton}>
+            <Text style={styles.discoverText}>Discover Items</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 20,
-          paddingTop: 16,
-          paddingBottom: 10,
-          backgroundColor: '#fff',
-          borderBottomWidth: 1,
-          borderBottomColor: '#eaeaea',
-        }}
-      >
-        {/* Logo */}
-        <Text
-          style={{
-            fontSize: 33,
-            fontWeight: '00',
-            color: '#000',
-            letterSpacing: 1.5,
-          }}
-        >
-          DRYP
-        </Text>
-
-        {/* Liked Items Text */}
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            color: '#000',
-            letterSpacing: 0.5,
-          }}
-        >
-          Liked Items
-        </Text>
-
-        {/* Cart Icon */}
-        <Pressable>
-          <Text style={{ fontSize: 31, color: '#000' }}>🛒</Text>
-        </Pressable>
-      </View>
-
-      {wishlistItems.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No liked items yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Items you like will appear here
-          </Text>
+    <>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Wishlist</Text>
         </View>
-      ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.itemsGrid}>
-            {wishlistItems.map((item) => (
-              <View key={item.id} style={styles.itemCard}>
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemBrand}>{item.brand}</Text>
-                  <Text style={styles.itemTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
-                  
-                  <View style={styles.itemActions}>
-                    <Pressable
-                      style={styles.addToCartButton}
-                      onPress={() => handleAddToCart(item)}
-                    >
-                      <Text style={styles.addToCartText}>Add to Cart</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.removeButton}
-                      onPress={() => removeFromWishlist(item.id)}
-                    >
-                      <Text style={styles.removeText}>♡</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-          <View style={styles.bottomSpacing} />
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  )
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={renderWishlistItem}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
+      <ProductDetailModal
+        productId={selectedProductId}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+      />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8f8f8',
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
     backgroundColor: '#ffffff',
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#000000',
-    letterSpacing: -1,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
+    fontSize: 28,
+    color: '#1a1a1a',
+    textAlign: 'left',
+    fontFamily: 'Zaloga',
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#666666',
-    fontWeight: '400',
-    marginTop: 4,
+  listContainer: {
+    padding: 16,
   },
-  content: {
+  itemContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  itemImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  itemDetails: {
     flex: 1,
+    marginLeft: 16,
+    justifyContent: 'center',
+  },
+  itemBrand: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 2,
+    fontFamily: 'Zaloga',
+  },
+  itemTitle: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    marginBottom: 4,
+    fontFamily: 'Zaloga',
+  },
+  itemPrice: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    marginBottom: 10,
+    fontFamily: 'Zaloga',
+  },
+  itemActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  addToCartButton: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addToCartText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Zaloga',
+  },
+  removeButton: {
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeText: {
+    color: '#FF6B6B',
+    fontSize: 16,
+    fontFamily: 'Zaloga',
   },
   emptyContainer: {
     flex: 1,
@@ -158,91 +268,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#000000',
+    fontSize: 22,
+    color: '#1a1a1a',
     textAlign: 'center',
     marginBottom: 12,
+    fontFamily: 'Zaloga',
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#666666',
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 22,
+    marginBottom: 32,
+    fontFamily: 'Zaloga',
   },
-  itemsGrid: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
+  discoverButton: {
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 100,
   },
-  itemCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    marginBottom: 20,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  itemImage: {
-    width: '100%',
-    height: 250,
-    resizeMode: 'cover',
-  },
-  itemInfo: {
-    padding: 15,
-  },
-  itemBrand: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#888888',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  itemTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000000',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#000000',
-    marginBottom: 15,
-  },
-  itemActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  addToCartButton: {
-    flex: 1,
-    backgroundColor: '#000000',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  addToCartText: {
+  discoverText: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  removeButton: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeText: {
     fontSize: 16,
-    color: '#666666',
+    fontFamily: 'Zaloga',
   },
-  bottomSpacing: {
-    height: 100,
-  },
-})
+});

@@ -1,95 +1,94 @@
-import React from 'react'
-import { Tabs } from 'expo-router'
-import { View, Text, StyleSheet } from 'react-native'
-import Ionicons from 'react-native-vector-icons/Ionicons'
-
-function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
-  const getIcon = () => {
-    switch (name) {
-      case 'home':
-        return focused ? 'home' : 'home-outline'
-      case 'search':
-        return focused ? 'search' : 'search-outline'
-      case 'wishlist': // this is your cart 🛒
-        return focused ? 'cart' : 'cart-outline'
-      case 'profile':
-        return focused ? 'heart' : 'heart-outline'
-      default:
-        return 'ellipse'
-    }
-  }
-
-  return (
-    <Ionicons
-      name={getIcon()}
-      size={26}
-      color={focused ? '#000' : '#888'}
-      style={{ marginBottom: -3 }}
-    />
-  )
-}
-
+import { Tabs, useFocusEffect, usePathname } from 'expo-router';
+import React from 'react';
+import { BackHandler } from 'react-native';
+import { useNavigationStore } from '../../src/state/navigation';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
+import { Ionicons } from '@expo/vector-icons';
+import CartBadge from '../../src/components/CartBadge';
 
 export default function TabLayout() {
+  const { push, goBack } = useNavigationStore();
+  const router = useCustomRouter();
+  const pathname = usePathname();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      push(pathname);
+    }, [pathname, push])
+  );
+
+  React.useEffect(() => {
+    const backAction = () => {
+      const backPath = goBack();
+      if (backPath) {
+        router.replace(backPath);
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [goBack, router]);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: 'black',
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#f0f0f0',
-          height: 80,
-          paddingBottom: 20,
+          height: 60,
+          paddingBottom: 10,
           paddingTop: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-          marginTop: 4,
+          fontFamily: 'Zaloga',
         },
-        tabBarActiveTintColor: '#000000',
-        tabBarInactiveTintColor: '#666666',
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="home" focused={focused} />,
+          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
           title: 'Search',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="search" focused={focused} />,
+          tabBarIcon: ({ color }) => <Ionicons name="search-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="wishlist"
         options={{
-          title: 'Liked',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="wishlist" focused={focused} />,
+          title: 'Wishlist',
+          tabBarIcon: ({ color }) => <Ionicons name="bookmark-outline" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="cart"
+        options={{
+          title: 'Cart',
+          tabBarIcon: ({ color }) => (
+            <CartBadge>
+              <Ionicons name="cart-outline" size={24} color={color} />
+            </CartBadge>
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Account',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="profile" focused={focused} />,
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={24} color={color} />,
         }}
       />
     </Tabs>
-  )
+  );
 }
-
-const styles = StyleSheet.create({
-  tabIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconText: {
-    fontSize: 20,
-  },
-})

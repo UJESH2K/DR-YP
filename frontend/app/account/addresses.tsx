@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,75 +7,95 @@ import {
   Pressable,
   StatusBar,
   Alert,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCustomRouter } from '../../src/hooks/useCustomRouter';
+import { apiCall } from '../../src/lib/api';
+import { useFocusEffect } from 'expo-router';
 
 export default function AddressesScreen() {
-  const router = useRouter()
+  const router = useCustomRouter();
+  const [addresses, setAddresses] = useState([]);
 
-  const [addresses] = useState([
-    {
-      id: 1,
-      type: 'Home',
-      name: 'John Doe',
-      address: '123 Main Street, Apt 4B',
-      city: 'New York, NY 10001',
-      phone: '+1 (555) 123-4567',
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: 'Work',
-      name: 'John Doe',
-      address: '456 Business Ave, Suite 200',
-      city: 'New York, NY 10002',
-      phone: '+1 (555) 987-6543',
-      isDefault: false,
-    },
-    {
-      id: 3,
-      type: 'Other',
-      name: 'Jane Smith',
-      address: '789 Friend Street',
-      city: 'Brooklyn, NY 11201',
-      phone: '+1 (555) 456-7890',
-      isDefault: false,
-    },
-  ])
+  useFocusEffect(
+    useCallback(() => {
+      const fetchAddresses = async () => {
+        try {
+          const profile = await apiCall('/api/users/profile');
+          if (profile && profile.addresses) {
+            setAddresses(profile.addresses);
+          }
+        } catch (error) {
+          console.error('Failed to fetch addresses:', error);
+        }
+      };
 
-  const handleEditAddress = (id: number) => {
-    Alert.alert('Edit Address', `Edit address ${id}`)
+      fetchAddresses();
+    }, [])
+  );
+
+
+
+  const handleSetDefaultAddress = async (addressId: string) => {
+    try {
+      const updatedAddresses = addresses.map(a => ({
+        ...a,
+        isDefault: a._id === addressId,
+      }));
+
+      const result = await apiCall('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ addresses: updatedAddresses }),
+      });
+
+      if (result) {
+        setAddresses(updatedAddresses);
+      } else {
+        throw new Error('Failed to set default address.');
+      }
+    } catch (error) {
+      console.error('Set default address error:', error);
+    }
+  };
+
+  const handleEditAddress = (address) => {
+    router.push({ pathname: '/account/edit-address', params: { address: JSON.stringify(address) } });
   }
 
-  const handleDeleteAddress = (id: number) => {
-    Alert.alert('Delete Address', `Delete address ${id}?`, [
+  const handleDeleteAddress = (addressId: string) => {
+    Alert.alert('Delete Address', `Delete address ${addressId}?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          const updatedAddresses = addresses.filter(a => a._id !== addressId);
+          const result = await apiCall('/api/users/profile', {
+            method: 'PUT',
+            body: JSON.stringify({ addresses: updatedAddresses }),
+          });
+
+          if (result) {
+            setAddresses(updatedAddresses);
+          } else {
+            throw new Error('Failed to delete address.');
+          }
+        } catch (error) {
+          console.error('Delete address error:', error);
+        }
+      }},
     ])
   }
 
   const handleAddAddress = () => {
-    Alert.alert('Add Address', 'Add new address functionality')
-  }
+    router.push('/account/add-address');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Addresses</Text>
-        <Pressable onPress={handleAddAddress} style={styles.addButton}>
-          <Text style={styles.addText}>+</Text>
-        </Pressable>
-      </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {addresses.map((address) => (
-          <View key={address.id} style={styles.addressCard}>
+          <View key={address._id} style={styles.addressCard}>
             <View style={styles.addressHeader}>
               <View style={styles.addressTypeContainer}>
                 <Text style={styles.addressType}>{address.type}</Text>
@@ -87,14 +107,22 @@ export default function AddressesScreen() {
               </View>
               
               <View style={styles.addressActions}>
+                {!address.isDefault && (
+                  <Pressable
+                    onPress={() => handleSetDefaultAddress(address._id)}
+                    style={styles.actionButton}
+                  >
+                    <Text style={styles.actionText}>Set as Default</Text>
+                  </Pressable>
+                )}
                 <Pressable 
-                  onPress={() => handleEditAddress(address.id)}
+                  onPress={() => handleEditAddress(address)}
                   style={styles.actionButton}
                 >
                   <Text style={styles.actionText}>Edit</Text>
                 </Pressable>
                 <Pressable 
-                  onPress={() => handleDeleteAddress(address.id)}
+                  onPress={() => handleDeleteAddress(address._id)}
                   style={[styles.actionButton, styles.deleteButton]}
                 >
                   <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
@@ -102,13 +130,24 @@ export default function AddressesScreen() {
               </View>
             </View>
             
-            <Text style={styles.addressName}>{address.name}</Text>
-            <Text style={styles.addressLine}>{address.address}</Text>
-            <Text style={styles.addressLine}>{address.city}</Text>
-            <Text style={styles.addressPhone}>{address.phone}</Text>
+            <View style={styles.addressDetails}>
+              <Text style={styles.addressName}>{address.name}</Text>
+              {address.company && <Text style={styles.addressLine}>{address.company}</Text>}
+              <Text style={styles.addressLine}>{address.line1}</Text>
+              {address.line2 && <Text style={styles.addressLine}>{address.line2}</Text>}
+              <Text style={styles.addressLine}>
+                {`${address.city}, ${address.state} ${address.pincode}`}
+              </Text>
+              <Text style={styles.addressLine}>{address.country}</Text>
+              {address.phone && <Text style={styles.addressPhone}>T: {address.phone}</Text>}
+            </View>
           </View>
         ))}
         
+        <Pressable onPress={handleAddAddress} style={styles.addButton}>
+          <Text style={styles.addButtonText}>Add New Address</Text>
+        </Pressable>
+
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
@@ -133,26 +172,27 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   backText: {
-    fontSize: 24,
+    fontSize: 28,
     color: '#000000',
+    fontFamily: 'Zaloga',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 28,
     color: '#000000',
+    fontFamily: 'Zaloga',
   },
   addButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 100,
+    marginTop: 20,
+    alignSelf: 'center',
   },
-  addText: {
-    fontSize: 20,
+  addButtonText: {
     color: '#ffffff',
-    fontWeight: '300',
+    fontSize: 18,
+    fontFamily: 'Zaloga',
   },
   content: {
     flex: 1,
@@ -182,10 +222,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addressType: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
     color: '#000000',
     marginRight: 8,
+    fontFamily: 'Zaloga',
   },
   defaultBadge: {
     backgroundColor: '#4CAF50',
@@ -194,9 +234,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   defaultText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#ffffff',
-    fontWeight: '600',
+    fontFamily: 'Zaloga',
   },
   addressActions: {
     flexDirection: 'row',
@@ -212,28 +252,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffebee',
   },
   actionText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
     color: '#000000',
+    fontFamily: 'Zaloga',
   },
   deleteText: {
     color: '#f44336',
   },
   addressName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
     color: '#000000',
     marginBottom: 4,
+    fontFamily: 'Zaloga',
   },
   addressLine: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666666',
     marginBottom: 2,
+    fontFamily: 'Zaloga',
   },
   addressPhone: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666666',
     marginTop: 4,
+    fontFamily: 'Zaloga',
   },
   bottomSpacing: {
     height: 100,
