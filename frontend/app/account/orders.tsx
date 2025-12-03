@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   FlatList,
-  Image, // Import Image component
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomRouter } from '../../src/hooks/useCustomRouter';
@@ -16,7 +16,7 @@ import { useFocusEffect } from 'expo-router';
 import { apiCall } from '../../src/lib/api';
 import { useAuthStore } from '../../src/state/auth';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000'; // Define API_BASE_URL
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
 
 export default function OrdersScreen() {
   const router = useCustomRouter();
@@ -27,7 +27,7 @@ export default function OrdersScreen() {
 
   const fetchOrders = useCallback(async () => {
     if (!user && (!isGuest || !guestId)) {
-      setError("User not logged in or no guest session found.");
+      setError("Please log in to see your orders.");
       setLoading(false);
       return;
     }
@@ -35,14 +35,10 @@ export default function OrdersScreen() {
     setError(null);
     try {
       const data = await apiCall('/api/orders/mine');
-      if (Array.isArray(data)) {
-        setOrders(data);
-      } else {
-        throw new Error(data?.message || 'Failed to fetch orders');
-      }
+      setOrders(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Failed to fetch user orders:", e);
-      setError(e.message || 'Failed to fetch orders');
+      setError(e.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -54,92 +50,103 @@ export default function OrdersScreen() {
     }, [fetchOrders])
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'delivered': return '#4CAF50';
-      case 'shipped': return '#2196F3';
-      case 'processing': return '#FF9800';
-      case 'pending': return '#FF9800';
-      default: return '#666666';
+  const getStatusStyle = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered': return { color: '#28a745', text: 'Delivered' };
+      case 'shipped': return { color: '#007bff', text: 'Shipped' };
+      case 'processing': return { color: '#fd7e14', text: 'Processing' };
+      case 'pending': return { color: '#ffc107', text: 'Pending' };
+      case 'cancelled': return { color: '#dc3545', text: 'Cancelled' };
+      default: return { color: '#6c757d', text: 'Unknown' };
     }
   };
 
-  const formatPrice = useCallback((price: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
-  , []);
+  const formatPrice = (price: number = 0) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
 
-  const renderOrderItem = ({ item }) => (
-    <View key={item._id} style={styles.orderCard}>
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>Order #{item.orderNumber}</Text>
-        <Text style={[styles.orderStatus, { color: getStatusColor(item.status) }]}>
-          {item.status}
-        </Text>
-      </View>
-      
-      <Text style={styles.orderDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-      
-      <View style={styles.productItemsList}>
-        {item.items.map((productItem, index) => (
-          <View key={index} style={styles.productItemContainer}>
-            {productItem.product?.images?.[0] && (
-              <Image 
-                source={{ uri: `${API_BASE_URL}${productItem.product.images[0]}` }} 
-                style={styles.productImage} 
-              />
-            )}
-            <View style={styles.productDetails}>
-              <Text style={styles.productName}>{productItem.product?.name || 'Unknown Product'}</Text>
-              {productItem.size && <Text style={styles.productVariant}>Size: {productItem.size}</Text>}
-              <View style={styles.productQuantityPrice}>
-                <Text style={styles.productQuantity}>Qty: {productItem.quantity}</Text>
+  const renderOrderItem = ({ item }: { item: any }) => {
+    const statusStyle = getStatusStyle(item.status);
+    return (
+      <Pressable style={styles.orderCard}>
+        <View style={styles.orderHeader}>
+          <Text style={styles.orderId}>Order #{item.orderNumber}</Text>
+          <Text style={[styles.orderDate, { flex: 1, textAlign: 'right' }]}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
+
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusIndicator, { backgroundColor: statusStyle.color }]} />
+          <Text style={[styles.orderStatus, { color: statusStyle.color }]}>
+            {statusStyle.text}
+          </Text>
+        </View>
+        
+        <View style={styles.itemsList}>
+          {item.items.map((productItem: any, index: number) => {
+            const product = productItem.product;
+            if (!product) {
+              return (
+                <View key={`deleted-${index}`} style={styles.productItem}>
+                  <View style={[styles.productImage, styles.imagePlaceholder]} />
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName}>Product no longer available</Text>
+                  </View>
+                </View>
+              );
+            }
+            return (
+              <View key={product._id} style={styles.productItem}>
+                <Image 
+                  source={{ uri: `${API_BASE_URL}${product.images[0]}` }} 
+                  style={styles.productImage} 
+                />
+                <View style={styles.productInfo}>
+                  <Text style={styles.productName}>{product.name}</Text>
+                  <Text style={styles.productDetails}>Qty: {productItem.quantity}</Text>
+                </View>
                 <Text style={styles.productPrice}>{formatPrice(productItem.price)}</Text>
               </View>
-            </View>
-          </View>
-        ))}
-      </View>
-      
-      <View style={styles.orderFooter}>
-        <Text style={styles.orderTotal}>Total: {formatPrice(item.totalAmount)}</Text>
-        <Pressable style={styles.trackButton}>
-          <Text style={styles.trackButtonText}>Track Order</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
+            );
+          })}
+        </View>
+        
+        <View style={styles.orderFooter}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalAmount}>{formatPrice(item.totalAmount)}</Text>
+        </View>
+      </Pressable>
+    );
+  };
+
+  const ListHeader = () => null; // Empty component as the title will be moved
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#1a1a1a" style={styles.centered} />
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
+        {/* The navigation bar should provide the title */}
         <View style={styles.centered}>
-          <Text style={styles.errorText}>Error: {error}</Text>
-          <Pressable onPress={fetchOrders}><Text style={styles.retryText}>Retry</Text></Pressable>
+          <ActivityIndicator size="large" color="#000" />
         </View>
       </SafeAreaView>
     );
   }
-
+  
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+      {/* The navigation bar should provide the title */}
       <FlatList
         data={orders}
         renderItem={renderOrderItem}
         keyExtractor={item => item._id}
-        contentContainerStyle={[styles.content, orders.length === 0 && styles.centered]}
-        ListEmptyComponent={<Text style={styles.emptyText}>You have no orders yet.</Text>}
-        refreshing={loading}
-        onRefresh={fetchOrders}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.centered}>
+            <Text style={styles.emptyText}>{error || "You have no orders yet."}</Text>
+            {error && <Pressable onPress={fetchOrders}><Text style={styles.retryText}>Try Again</Text></Pressable>}
+          </View>
+        }
       />
     </SafeAreaView>
   );
@@ -148,144 +155,139 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f7',
+    backgroundColor: '#f8f9fa',
   },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 20, // Adjusted for better spacing
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 30,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
-  errorText: {
-    fontFamily: 'Zaloga',
-    fontSize: 16,
-    color: '#ff3b30',
-    marginBottom: 10,
+  headerContainer: {
+    paddingVertical: 16,
   },
-  retryText: {
+  headerTitle: {
     fontFamily: 'Zaloga',
-    fontSize: 16,
-    color: '#007AFF',
+    fontSize: 28,
+    color: '#000',
   },
   orderCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    marginTop: 16,
-    shadowColor: '#000000',
+    marginBottom: 16,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, // Reduced shadow for cleaner look
-    shadowRadius: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 3,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   orderId: {
-    fontFamily: 'JosefinSans_600SemiBold',
+    fontFamily: 'Zaloga',
     fontSize: 18,
-    color: '#1a1a1a',
-  },
-  orderStatus: {
-    fontFamily: 'JosefinSans_600SemiBold',
-    fontSize: 16,
+    color: '#000',
   },
   orderDate: {
-    fontFamily: 'JosefinSans_400Regular',
+    fontFamily: 'Zaloga',
     fontSize: 14,
     color: '#6c757d',
-    marginBottom: 12,
   },
-  productItemsList: { // New style for the list of products in an order
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e0e0e0',
-    paddingTop: 12,
-    marginBottom: 12,
-  },
-  productItemContainer: { // New style for individual product item
+  statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    backgroundColor: '#fcfcfc',
-    borderRadius: 8,
-    padding: 8,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  productImage: { // New style for product image
-    width: 60,
-    height: 60,
+  statusIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  orderStatus: {
+    fontFamily: 'Zaloga',
+    fontSize: 16,
+    textTransform: 'capitalize',
+  },
+  itemsList: {
+    marginBottom: 12,
+  },
+  productItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  productImage: {
+    width: 50,
+    height: 65,
     borderRadius: 8,
     marginRight: 12,
-    resizeMode: 'cover',
+    backgroundColor: '#eee',
   },
-  productDetails: { // New style for product details text container
+  imagePlaceholder: {
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  productInfo: {
     flex: 1,
   },
-  productName: { // New style for product name
-    fontFamily: 'JosefinSans_500Medium',
-    fontSize: 15,
-    color: '#333333',
+  productName: {
+    fontFamily: 'Zaloga',
+    fontSize: 16,
+    color: '#343a40',
+    marginBottom: 2,
   },
-  productVariant: { // New style for product variant (size)
-    fontFamily: 'JosefinSans_400Regular',
-    fontSize: 13,
-    color: '#6c757d',
-    marginTop: 2,
-  },
-  productQuantityPrice: { // New style for quantity and price in one row
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  productQuantity: { // New style for product quantity
-    fontFamily: 'JosefinSans_400Regular',
+  productDetails: {
+    fontFamily: 'Zaloga',
     fontSize: 14,
     color: '#6c757d',
   },
-  productPrice: { // New style for product price
-    fontFamily: 'CormorantGaramond_700Bold',
+  productPrice: {
+    fontFamily: 'Zaloga',
     fontSize: 16,
-    color: '#1a1a1a',
+    color: '#000',
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e0e0e0',
-    paddingTop: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
-  orderTotal: {
-    fontFamily: 'CormorantGaramond_700Bold',
-    fontSize: 20,
-    color: '#1a1a1a',
+  totalLabel: {
+    fontFamily: 'Zaloga',
+    fontSize: 18,
+    color: '#343a40',
   },
-  trackButton: {
-    backgroundColor: '#1a1a1a', // Consistent primary button color
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  trackButtonText: {
-    fontFamily: 'JosefinSans_600SemiBold',
-    color: '#ffffff',
-    fontSize: 15,
+  totalAmount: {
+    fontFamily: 'Zaloga',
+    fontSize: 18,
+    color: '#000',
   },
   emptyText: {
-    fontFamily: 'JosefinSans_400Regular',
+    fontFamily: 'Zaloga',
     textAlign: 'center',
     fontSize: 16,
     color: '#6c757d',
-    marginTop: 20,
+  },
+  retryText: {
+    fontFamily: 'Zaloga',
+    fontSize: 16,
+    color: '#007AFF',
+    marginTop: 10,
   },
 });

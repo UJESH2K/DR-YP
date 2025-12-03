@@ -6,10 +6,12 @@ interface CartItemProps {
   item: CartItemType;
 }
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.9:5000';
+
 const CartItem: React.FC<CartItemProps> = ({ item }) => {
   return (
     <View style={styles.cartItemContainer}>
-      <Image source={{ uri: item.image }} style={styles.cartItemImage} />
+      <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.cartItemImage} />
       <View style={styles.itemDetails}>
         <Text style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemBrand}>{item.brand}</Text>
@@ -38,23 +40,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemTitle: {
-    fontFamily: 'JosefinSans_600SemiBold',
+    fontFamily: 'Zaloga',
     fontSize: 16,
     marginBottom: 4,
   },
   itemBrand: {
-    fontFamily: 'JosefinSans_400Regular',
+    fontFamily: 'Zaloga',
     fontSize: 12,
     color: '#888',
     marginBottom: 4,
   },
   itemPrice: {
-    fontFamily: 'CormorantGaramond_700Bold',
+    fontFamily: 'Zaloga',
     fontSize: 16,
     marginBottom: 4,
   },
   itemQuantity: {
-    fontFamily: 'JosefinSans_400Regular',
+    fontFamily: 'Zaloga',
     fontSize: 14,
   },
 });
