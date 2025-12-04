@@ -299,8 +299,8 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
           <View style={{ height: 20 }} />
 
           <View style={[styles.detailsActions, { paddingBottom: insets.bottom || 12 }]}>
-            <Pressable style={[styles.detailsButton, isProductInWishlist && styles.wishlistButtonActive]} onPress={handleAddToWishlist} accessibilityRole="button" accessibilityLabel={isProductInWishlist ? "Remove from wishlist" : "Add to wishlist"}>
-              <Ionicons name={isProductInWishlist ? "heart" : "heart-outline"} size={24} color={isProductInWishlist ? "#000" : "#888"} />
+            <Pressable onPress={handleAddToWishlist} accessibilityRole="button" accessibilityLabel={isProductInWishlist ? "Remove from wishlist" : "Add to wishlist"} style={styles.wishlistIconWrapper}>
+              <Ionicons name={isProductInWishlist ? "bookmark" : "bookmark-outline"} size={32} color={isProductInWishlist ? "#000" : "#888"} />
             </Pressable>
             <Pressable
               style={[
@@ -353,6 +353,14 @@ const styles = StyleSheet.create({
   optionTitle: { fontSize: 16, marginBottom: 10, fontFamily: 'Zaloga' },
   detailsDescription: { fontSize: 16, lineHeight: 24, color: '#666', fontFamily: 'Zaloga' },
   detailsActions: { flexDirection: 'row', marginTop: 20, gap: 10, paddingBottom: 40 },
+  wishlistIconWrapper: {
+    padding: 10,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
   detailsButton: { padding: 15, borderRadius: 15, borderWidth: 1, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
   wishlistButtonActive: { backgroundColor: '#f0f0f0' },
   addToCartButton: { backgroundColor: '#000' },

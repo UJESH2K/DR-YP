@@ -47,6 +47,7 @@ export default function SearchScreen() {
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [areFiltersVisible, setAreFiltersVisible] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   
@@ -68,7 +69,7 @@ export default function SearchScreen() {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (searchQuery.length > 0) {
+      if (searchQuery.length > 0 && isTyping) {
         fetchSuggestions();
       } else {
         setSuggestions([]);
@@ -78,7 +79,7 @@ export default function SearchScreen() {
     return () => {
       clearTimeout(handler);
     };
-  }, [searchQuery]);
+  }, [searchQuery, isTyping]);
 
   const fetchSuggestions = async () => {
     try {
@@ -165,10 +166,17 @@ export default function SearchScreen() {
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+    setIsTyping(true);
   };
   
   const applyFilters = () => {
-    fetchData();
+    const noFiltersApplied = !selectedBrand && !selectedCategory && !selectedColor && !minPrice && !maxPrice;
+    if (noFiltersApplied) {
+        setResults([]);
+        setSearchQuery('');
+    } else {
+        fetchData();
+    }
     setAreFiltersVisible(false);
   };
 
@@ -178,13 +186,16 @@ export default function SearchScreen() {
     setSelectedColor(null);
     setMinPrice('');
     setMaxPrice('');
-    fetchData();
+    setResults([]);
+    setSearchQuery('');
     setAreFiltersVisible(false);
   };
 
   const closeFilters = () => {
     setAreFiltersVisible(false);
   };
+
+  const areAnyFiltersApplied = !!(selectedBrand || selectedCategory || selectedColor || minPrice || maxPrice);
 
   // UI Rendering
   const renderProductCard = ({ item, large = false }: { item: Item, large?: boolean }) => (
@@ -222,9 +233,19 @@ export default function SearchScreen() {
               onChangeText={handleSearchChange}
               onSubmitEditing={fetchData}
             />
-            <Pressable onPress={fetchData} style={styles.searchIcon}>
-              <Ionicons name="search" size={24} color="#888" />
-            </Pressable>
+            {searchQuery.length > 0 ? (
+                <Pressable onPress={() => {
+                    setSearchQuery('');
+                    setResults([]);
+                    setSuggestions([]);
+                }} style={styles.searchIcon}>
+                    <Ionicons name="close" size={24} color="#888" />
+                </Pressable>
+            ) : (
+                <Pressable onPress={fetchData} style={styles.searchIcon}>
+                    <Ionicons name="search" size={24} color="#888" />
+                </Pressable>
+            )}
           </View>
           <Pressable onPress={() => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -234,6 +255,15 @@ export default function SearchScreen() {
           </Pressable>
         </View>
 
+        {areAnyFiltersApplied && !areFiltersVisible && (
+            <View style={styles.clearFiltersContainer}>
+                <Pressable onPress={clearFilters} style={styles.clearFiltersButton}>
+                    <Text style={styles.clearFiltersButtonText}>Clear Filters</Text>
+                    <Ionicons name="close" size={16} color="#000" style={{ marginLeft: 5 }} />
+                </Pressable>
+            </View>
+        )}
+
         {suggestions.length > 0 && (
             <FlatList
                 data={suggestions}
@@ -241,6 +271,7 @@ export default function SearchScreen() {
                 renderItem={({ item }) => (
                     <Pressable style={styles.suggestionItem} onPress={() => {
                         setSearchQuery(item);
+                        setIsTyping(false);
                         setSuggestions([]);
                         fetchData();
                     }}>
@@ -269,7 +300,12 @@ export default function SearchScreen() {
               if (item.type === 'recent-searches' && recentSearches.length > 0 && results.length === 0 && searchQuery.length < 3) {
                 return (
                   <View>
-                    <Text style={styles.sectionTitle}>{item.title}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.sectionTitle}>{item.title}</Text>
+                        <Pressable onPress={() => setRecentSearches([])}>
+                            <Text style={{ color: 'gray', paddingRight: 20 }}>Clear</Text>
+                        </Pressable>
+                    </View>
                     <FlatList
                       horizontal
                       data={item.data}
@@ -445,11 +481,26 @@ const styles = StyleSheet.create({
     marginTop: 4, 
     fontFamily: 'Zaloga' 
   },
+  clearFiltersContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  clearFiltersButtonText: {
+    fontFamily: 'Zaloga',
+    fontSize: 14,
+  },
   suggestionsContainer: {
     backgroundColor: 'white',
     borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#ddd',
     marginHorizontal: 20,
   },
   suggestionItem: {
