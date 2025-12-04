@@ -106,6 +106,36 @@ router.get('/tags', async (req, res, next) => {
   }
 });
 
+// @route   GET /api/products/suggestions
+// @desc    Get search suggestions
+// @access  Public
+router.get('/suggestions', async (req, res, next) => {
+  try {
+    const { query } = req.query;
+    if (!query) {
+      return res.json([]);
+    }
+    const regex = new RegExp(query, 'i');
+    
+    // Find matching products
+    const products = await Product.find({ name: regex }).limit(5).select('name');
+    const productNames = products.map(p => p.name);
+    
+    // Find matching categories
+    const categories = await Product.distinct('category', { category: regex });
+    
+    // Find matching brands
+    const brands = await Product.distinct('brand', { brand: regex });
+    
+    // Combine, remove duplicates, and limit
+    const suggestions = [...new Set([...productNames, ...categories, ...brands])].slice(0, 10);
+    
+    res.json(suggestions);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // @route   PUT /api/products/:id
 // @desc    Update a product
 // @access  Private (Vendor only)
