@@ -19,6 +19,7 @@ import { useCartStore } from '../../src/state/cart';
 import { useWishlistStore } from '../../src/state/wishlist';
 import { useAuthStore } from '../../src/state/auth';
 import AnimatedLoadingScreen from './common/AnimatedLoadingScreen';
+import CustomAlert from './common/CustomAlert';
 import { Product, ProductOption, ProductVariant } from '../types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -53,6 +54,12 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [recentlyAddedToCart, setRecentlyAddedToCart] = useState<Set<string>>(new Set());
   const [isProductInWishlist, setIsProductInWishlist] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: { text: string; onPress: () => void; style?: 'cancel' | 'destructive' | 'default' }[];
+  } | null>(null);
 
   const detailsPosition = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   
@@ -130,7 +137,12 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
       }
     } catch (error) {
       console.error('Failed to fetch product details:', error);
-      Alert.alert('Error', 'Failed to load product details.');
+      setAlertInfo({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to load product details.',
+        buttons: [{ text: 'OK', onPress: () => setAlertInfo(null) }]
+      });
       onClose();
     } finally {
       setLoading(false);
@@ -162,14 +174,17 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
     try {
       if (isProductInWishlist) {
         await removeFromWishlistState(product._id);
-        Alert.alert('Success', `${product.name} removed from your wishlist!`);
       } else {
         await addToWishlist(product);
-        Alert.alert('Success', `${product.name} added to your wishlist!`);
       }
     } catch (error) {
       console.warn(error);
-      Alert.alert('Error', 'Could not update wishlist.');
+      setAlertInfo({
+        visible: true,
+        title: 'Error',
+        message: 'Could not update wishlist.',
+        buttons: [{ text: 'OK', onPress: () => setAlertInfo(null) }]
+      });
     }
   };
 
@@ -182,7 +197,6 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
 
     if (isInCart) {
       removeFromCart(cartId);
-      Alert.alert('Success', `${product.name} removed from cart!`);
     } else {
       const itemPrice = selectedVariant?.price ?? product.basePrice;
       const itemImage = selectedVariant?.images?.[0] || product.images[0];
@@ -207,8 +221,6 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
           return newSet;
         });
       }, 2000);
-
-      Alert.alert('Success', `${product.name} added to cart!`);
     }
   }, [product, selectedColor, selectedVariant, cartItems, addToCart, removeFromCart]);
 
@@ -250,6 +262,14 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, isVi
 
   return (
     <Animated.View style={[styles.detailsView, { transform: [{ translateY: detailsPosition }] }]} accessibilityViewIsModal>
+      {alertInfo && (
+        <CustomAlert
+          visible={alertInfo.visible}
+          title={alertInfo.title}
+          message={alertInfo.message}
+          buttons={alertInfo.buttons}
+        />
+      )}
       <Pressable onPress={onClose} style={styles.closeButton}>
         <Ionicons name="chevron-down" size={30} color="#333" />
       </Pressable>

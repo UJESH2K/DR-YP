@@ -13,37 +13,49 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useCartStore } from '../../src/state/cart';
+import { useWishlistStore } from '../../src/state/wishlist';
 import { apiCall } from '../../src/lib/api';
 import type { Item } from '../../src/types';
 import { mapProductsToItems } from '../../src/utils/productMapping';
 import AnimatedLoadingScreen from '../../src/components/common/AnimatedLoadingScreen';
+import CustomAlert from '../../src/components/common/CustomAlert';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
 
 export default function WishlistScreen() {
-  const [items, setItems] = useState<Item[]>([]);
+  const { items, setWishlist, removeFromWishlist } = useWishlistStore();
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCartStore();
   const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = React.useState(false);
+  const [alertInfo, setAlertInfo] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: { text: string; onPress: () => void; style?: 'cancel' | 'destructive' | 'default' }[];
+  } | null>(null);
 
   const fetchWishlist = useCallback(async () => {
     setLoading(true);
     try {
       const likedProducts = await apiCall('/api/wishlist');
       if (Array.isArray(likedProducts)) {
-        const mappedItems = mapProductsToItems(likedProducts);
-        setItems(mappedItems);
+        setWishlist(likedProducts);
       } else {
-        setItems([]);
+        setWishlist([]);
       }
     } catch (error) {
       console.error('Failed to fetch wishlist:', error);
-      Alert.alert('Error', 'Could not load your wishlist. Please try again later.');
-      setItems([]);
+      setAlertInfo({
+        visible: true,
+        title: 'Error',
+        message: 'Could not load your wishlist. Please try again later.',
+        buttons: [{ text: 'OK', onPress: () => setAlertInfo(null) }]
+      });
+      setWishlist([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setWishlist]);
 
   // useFocusEffect will re-fetch data every time the screen comes into focus
   useFocusEffect(
@@ -53,49 +65,59 @@ export default function WishlistScreen() {
   );
 
   const handleAddToCart = (item: Item) => {
-    try {
-      addToCart({
-        productId: item.id,
-        title: item.title,
-        price: item.price,
-        image: item.image,
-        brand: item.brand,
-        quantity: 1,
-      });
-      Alert.alert('Success', `${item.title} added to cart!`);
-    } catch (error) {
-      console.error('Failed to add to cart:', error);
-      Alert.alert('Error', 'Failed to add item to cart');
-    }
-  };
-
-  const handleRemoveFromWishlist = async (itemId: string, title: string) => {
-    Alert.alert(
-      'Remove from Wishlist',
-      `Are you sure you want to remove "${title}" from your wishlist?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
+    setAlertInfo({
+      visible: true,
+      title: 'Add to Cart',
+      message: `Add "${item.title}" to your cart and remove from wishlist?`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertInfo(null) },
         {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
+          text: 'Add',
+          style: 'default',
+          onPress: () => {
+            setAlertInfo(null);
             try {
-              const result = await apiCall(`/api/wishlist/${itemId}`, { method: 'DELETE' });
-              if (result && result.success) {
-                // Optimistically update the UI
-                setItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
-                Alert.alert('Removed', `"${title}" has been removed from your wishlist.`);
-              } else {
-                throw new Error(result?.message || 'Failed to remove item.');
-              }
+              addToCart({
+                productId: item.id,
+                title: item.title,
+                price: item.price,
+                image: item.image,
+                brand: item.brand,
+                quantity: 1,
+              });
+              removeFromWishlist(item.id);
             } catch (error) {
-              console.error('Failed to remove from wishlist:', error);
-              Alert.alert('Error', 'Could not remove item. Please try again.');
+              console.error('Failed to add to cart:', error);
+              setAlertInfo({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to add item to cart',
+                buttons: [{ text: 'OK', onPress: () => setAlertInfo(null) }]
+              });
             }
           },
         },
       ]
-    );
+    });
+  };
+
+  const handleRemoveFromWishlist = async (itemId: string, title: string) => {
+    setAlertInfo({
+      visible: true,
+      title: 'Remove from Wishlist',
+      message: `Are you sure you want to remove "${title}" from your wishlist?`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertInfo(null) },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setAlertInfo(null); // Dismiss confirmation alert
+            removeFromWishlist(itemId);
+          },
+        },
+      ]
+    });
   };
 
   const formatPrice = (price: number) => {
@@ -126,6 +148,8 @@ export default function WishlistScreen() {
     </Pressable>
   );
 
+  const mappedItems = mapProductsToItems(items);
+
   if (loading) {
     return <AnimatedLoadingScreen text="Loading your wishlist..." />;
   }
@@ -142,6 +166,14 @@ export default function WishlistScreen() {
             <Text style={styles.discoverText}>Discover Items</Text>
           </Pressable>
         </View>
+        {alertInfo && (
+          <CustomAlert
+            visible={alertInfo.visible}
+            title={alertInfo.title}
+            message={alertInfo.message}
+            buttons={alertInfo.buttons}
+          />
+        )}
       </SafeAreaView>
     );
   }
@@ -154,7 +186,7 @@ export default function WishlistScreen() {
           <Text style={styles.headerTitle}>My Wishlist</Text>
         </View>
         <FlatList
-          data={items}
+          data={mappedItems}
           keyExtractor={(item) => item.id}
           renderItem={renderWishlistItem}
           contentContainerStyle={styles.listContainer}
@@ -166,6 +198,14 @@ export default function WishlistScreen() {
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
       />
+      {alertInfo && (
+        <CustomAlert
+          visible={alertInfo.visible}
+          title={alertInfo.title}
+          message={alertInfo.message}
+          buttons={alertInfo.buttons}
+        />
+      )}
     </>
   );
 }
